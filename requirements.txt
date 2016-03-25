@@ -1,0 +1,17 @@
+Cython==0.23.4
+decorator==4.0.9
+h5py==2.5.0
+ipython==4.1.2
+ipython-genutils==0.1.0
+Keras==0.3.2
+numpy==1.10.4
+path.py==8.1.2
+pexpect==4.0.1
+pickleshare==0.6
+ptyprocess==0.5.1
+PyYAML==3.11
+scipy==0.17.0
+simplegeneric==0.8.1
+six==1.10.0
+Theano==0.8.0
+traitlets==4.2.1
