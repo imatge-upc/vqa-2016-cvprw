@@ -1,3 +1,5 @@
 #PyCharm
 /.idea
 
+/data
+!data/get_dataset.py
