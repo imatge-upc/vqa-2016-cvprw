@@ -7,5 +7,5 @@ setup(
     author='Issey Masuda Mora',
     url='https://github.com/imatge-upc/vqa-2016',
     download_url='https://github.com/imatge-upc/vqa-2016',
-    packages=['vqa', 'vqaEvaluation', 'vqaTools', 'tests']
+    packages=['vqa', 'tests']
 )
