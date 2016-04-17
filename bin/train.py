@@ -1,26 +1,36 @@
 import json
 import os
 import cPickle as pickle
+import numpy as np
+import h5py
+import shutil
 
 from keras.preprocessing.text import Tokenizer
+from keras.preprocessing.sequence import pad_sequences
 from keras.models import Sequential, model_from_json
 from keras.layers.embeddings import Embedding
 from keras.layers.core import Dropout, RepeatVector, Merge, Dense, Flatten
 from keras.layers.convolutional import Convolution2D, MaxPooling2D, ZeroPadding2D
 from keras.layers.recurrent import LSTM
+from scipy.misc import imread, imresize
 
 # ------------------------------ CONSTANTS ------------------------------
 # Paths
-PREPROC_DATA_PATH = '../data/preprocessed/'
+DATA_PATH = '../data/'
+PREPROC_DATA_PATH = DATA_PATH + 'preprocessed/'
+TRAIN_IMAGES_PATH = DATA_PATH + 'train/images/'
+LIST_IMAGES_FILE_PATH = TRAIN_IMAGES_PATH + 'list_images.json'
 TOKENIZER_PATH = PREPROC_DATA_PATH + 'tokenizer.p'
 QUESTIONS_TOKENS_PATH = PREPROC_DATA_PATH + 'question_tokens.json'
 ANSWERS_TOKENS_PATH = PREPROC_DATA_PATH + 'answer_tokens.json'
 MODELS_DIR_PATH = '../models/'
 MODEL_PATH = MODELS_DIR_PATH + 'model.json'
 VGG_WEIGHTS_PATH = MODELS_DIR_PATH + 'vgg16_weights.h5'
+TRUNCATED_VGG_WEIGHTS_PATH = MODELS_DIR_PATH + 'truncated_vgg16_weights.h5'
 # Constants
 VOCABULARY_SIZE = 20000
 EMBED_HIDDEN_SIZE = 50
+NUM_EPOCHS = 40
 
 # --------------- CREATE DICTIONARY & TOKENIZER -----------------
 # Retrieve the questions from the dataset
@@ -56,7 +66,6 @@ else:
     tokenizer = pickle.load(open(TOKENIZER_PATH, 'r'))
     print('Tokenizer loaded')
 
-
 # ------------------------------- TOKENIZE DATA ---------------------------------
 # Get questions tokens
 if not os.path.isfile(QUESTIONS_TOKENS_PATH):
@@ -84,7 +93,6 @@ else:
 
 query_maxlen = max(map(len, (question for question in questions_tokens)))
 
-
 # ------------------------------- CREATE MODEL ----------------------------------
 if not os.path.isfile(MODEL_PATH):
     print('Creating model...')
@@ -94,56 +102,65 @@ if not os.path.isfile(MODEL_PATH):
     query_model.add(Dropout(0.3))
 
     # Image
-    im_model = Sequential()
-    im_model.add(ZeroPadding2D((1, 1), input_shape=(3, 224, 224)))
-    im_model.add(Convolution2D(64, 3, 3, activation='relu'))
-    im_model.add(ZeroPadding2D((1, 1)))
-    im_model.add(Convolution2D(64, 3, 3, activation='relu'))
-    im_model.add(MaxPooling2D((2, 2), strides=(2, 2)))
-
-    im_model.add(ZeroPadding2D((1, 1)))
-    im_model.add(Convolution2D(128, 3, 3, activation='relu'))
-    im_model.add(ZeroPadding2D((1, 1)))
-    im_model.add(Convolution2D(128, 3, 3, activation='relu'))
-    im_model.add(MaxPooling2D((2, 2), strides=(2, 2)))
-
-    im_model.add(ZeroPadding2D((1, 1)))
-    im_model.add(Convolution2D(256, 3, 3, activation='relu'))
-    im_model.add(ZeroPadding2D((1, 1)))
-    im_model.add(Convolution2D(256, 3, 3, activation='relu'))
-    im_model.add(ZeroPadding2D((1, 1)))
-    im_model.add(Convolution2D(256, 3, 3, activation='relu'))
-    im_model.add(MaxPooling2D((2, 2), strides=(2, 2)))
-
-    im_model.add(ZeroPadding2D((1, 1)))
-    im_model.add(Convolution2D(512, 3, 3, activation='relu'))
-    im_model.add(ZeroPadding2D((1, 1)))
-    im_model.add(Convolution2D(512, 3, 3, activation='relu'))
-    im_model.add(ZeroPadding2D((1, 1)))
-    im_model.add(Convolution2D(512, 3, 3, activation='relu'))
-    im_model.add(MaxPooling2D((2, 2), strides=(2, 2)))
-
-    im_model.add(ZeroPadding2D((1, 1)))
-    im_model.add(Convolution2D(512, 3, 3, activation='relu'))
-    im_model.add(ZeroPadding2D((1, 1)))
-    im_model.add(Convolution2D(512, 3, 3, activation='relu'))
-    im_model.add(ZeroPadding2D((1, 1)))
-    im_model.add(Convolution2D(512, 3, 3, activation='relu'))
-    im_model.add(MaxPooling2D((2, 2), strides=(2, 2)))
-
-    im_model.add(Flatten())
-    im_model.add(Dense(4096, activation='relu'))
-    im_model.add(Dropout(0.5))
-    im_model.add(Dense(4096, activation='relu'))
-    im_model.add(Dropout(0.5))
-    im_model.add(Dense(1000, activation='softmax'))
-
+    # Load VGG-16 weights
     if not os.path.isfile(VGG_WEIGHTS_PATH):
         print('You need to download the VGG-16 weights: '
               'https://drive.google.com/file/d/0Bz7KyqmuGsilT0J5dmRCM0ROVHc/view?pref=2&pli=1')
         quit()
 
-    im_model.load_weights(VGG_WEIGHTS_PATH)
+    if not os.path.isfile(TRUNCATED_VGG_WEIGHTS_PATH):
+        print('Preparing VGG-16 weights...')
+        shutil.copy(VGG_WEIGHTS_PATH, TRUNCATED_VGG_WEIGHTS_PATH)
+        trunc_vgg_weights = h5py.File(TRUNCATED_VGG_WEIGHTS_PATH)
+        # Remove last 5 layers' weights
+        for i in range(32, 36):
+            del trunc_vgg_weights['layer_{}'.format(i)]
+        trunc_vgg_weights.attrs.modify('nb_layers', 32)
+        trunc_vgg_weights.flush()
+        trunc_vgg_weights.close()
+        print('VGG weights ready to use')
+
+    # Set to all layers trainable=False to freeze VGG-16 weights'
+    im_model = Sequential()
+    im_model.add(ZeroPadding2D((1, 1), input_shape=(3, 224, 224), trainable=False))
+    im_model.add(Convolution2D(64, 3, 3, activation='relu', trainable=False))
+    im_model.add(ZeroPadding2D((1, 1), trainable=False))
+    im_model.add(Convolution2D(64, 3, 3, activation='relu', trainable=False))
+    im_model.add(MaxPooling2D((2, 2), strides=(2, 2), trainable=False))
+
+    im_model.add(ZeroPadding2D((1, 1), trainable=False))
+    im_model.add(Convolution2D(128, 3, 3, activation='relu', trainable=False))
+    im_model.add(ZeroPadding2D((1, 1), trainable=False))
+    im_model.add(Convolution2D(128, 3, 3, activation='relu', trainable=False))
+    im_model.add(MaxPooling2D((2, 2), strides=(2, 2), trainable=False))
+
+    im_model.add(ZeroPadding2D((1, 1), trainable=False))
+    im_model.add(Convolution2D(256, 3, 3, activation='relu', trainable=False))
+    im_model.add(ZeroPadding2D((1, 1), trainable=False))
+    im_model.add(Convolution2D(256, 3, 3, activation='relu', trainable=False))
+    im_model.add(ZeroPadding2D((1, 1), trainable=False))
+    im_model.add(Convolution2D(256, 3, 3, activation='relu', trainable=False))
+    im_model.add(MaxPooling2D((2, 2), strides=(2, 2), trainable=False))
+
+    im_model.add(ZeroPadding2D((1, 1), trainable=False))
+    im_model.add(Convolution2D(512, 3, 3, activation='relu', trainable=False))
+    im_model.add(ZeroPadding2D((1, 1), trainable=False))
+    im_model.add(Convolution2D(512, 3, 3, activation='relu', trainable=False))
+    im_model.add(ZeroPadding2D((1, 1), trainable=False))
+    im_model.add(Convolution2D(512, 3, 3, activation='relu', trainable=False))
+    im_model.add(MaxPooling2D((2, 2), strides=(2, 2), trainable=False))
+
+    im_model.add(ZeroPadding2D((1, 1), trainable=False))
+    im_model.add(Convolution2D(512, 3, 3, activation='relu', trainable=False))
+    im_model.add(ZeroPadding2D((1, 1), trainable=False))
+    im_model.add(Convolution2D(512, 3, 3, activation='relu', trainable=False))
+    im_model.add(ZeroPadding2D((1, 1), trainable=False))
+    im_model.add(Convolution2D(512, 3, 3, activation='relu', trainable=False))
+    im_model.add(MaxPooling2D((2, 2), strides=(2, 2), trainable=False))
+
+    im_model.add(Flatten(trainable=False))
+
+    im_model.load_weights(TRUNCATED_VGG_WEIGHTS_PATH)
 
     im_model.add(RepeatVector(query_maxlen))
 
@@ -171,6 +188,3 @@ else:
     print('Loading model...')
     model = model_from_json(open(MODEL_PATH, 'r').read())
     print('Model loaded')
-
-# ------------------------------- TRAIN MODEL ----------------------------------
-# model.fit([X, Xq], Y, batch_size=BATCH_SIZE, nb_epoch=EPOCHS, validation_split=0.05, show_accuracy=True)
