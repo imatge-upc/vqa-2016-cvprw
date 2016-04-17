@@ -1,5 +1,9 @@
-#PyCharm
+# PyCharm
 /.idea
 
+# Data
 /data
 !data/get_dataset.py
+
+# Models
+/models/vgg16_weights.h5

@@ -8,6 +8,7 @@ numpy==1.10.4
 path.py==8.1.2
 pexpect==4.0.1
 pickleshare==0.6
+Pillow==3.2.0
 ptyprocess==0.5.1
 PyYAML==3.11
 scipy==0.17.0
