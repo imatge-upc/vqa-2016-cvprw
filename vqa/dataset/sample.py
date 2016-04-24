@@ -1,22 +1,40 @@
+import os
+
 import numpy as np
-from enum import Enum
+
 from scipy.misc import imread, imresize
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
+
+from types import DatasetType
 
 
 class VQASample:
     """Class that handles a single VQA dataset sample, thus containing the questions, answer and image.
 
-    If the sample type is SampleType.TEST, no answer is expected
+    Attributes:
+        question (Question)
+        image (Image)
+        answer (Answer): only if dataset_type is different than TEST
+        dataset_type (DatasetType): the type of dataset this sample belongs to
+        question_max_len: The maximum length allowed for a question
     """
 
-    def __init__(self, question, image, answer=None, sample_type=SampleType.TRAIN, question_max_len=None):
+    def __init__(self, question, image, answer=None, dataset_type=DatasetType.TRAIN, question_max_len=None):
+        """Instantiate a VQASample.
+
+        Args:
+            question (Question): Question object with the question sample
+            image (Image): Image object with, at least, the reference to the image path
+            answer (Answer): Answer object with the answer sample. If dataset type is TEST, no answer is expected
+            dataset_type (DatasetType): type of dataset this sample belongs to. The default is DatasetType.TRAIN
+            question_max_len (int): question maximum length
+        """
         if isinstance(question, Question):
             self.question = question
         else:
             raise TypeError('question has to be an instance of class Question')
-        if sample_type != SampleType.TEST:
+        if dataset_type != DatasetType.TEST:
             if isinstance(answer, Answer):
                 self.answer = answer
             else:
@@ -25,20 +43,26 @@ class VQASample:
             self.image = image
         else:
             raise TypeError('image has to be an instance of class Image')
-        if isinstance(sample_type, SampleType):
-            self.sample_type = sample_type
+        if isinstance(dataset_type, DatasetType):
+            self.sample_type = dataset_type
         else:
-            raise TypeError('sample_type has to be one of the SampleType defined values')
+            raise TypeError('dataset_type has to be one of the DatasetType defined values')
         if question_max_len:
-            self.question_max_len = question_max_len
+            try:
+                self.question_max_len = int(question_max_len)
+                if self.question_max_len < 0:
+                    raise ValueError('question_max_len has to be a positive integer')
+            except:
+                raise TypeError('question_max_len has to be a postivie integer')
         else:
-            self.question_max_len = question.get_token_length()
+            self.question_max_len = question.get_tokens_length()
 
     def get_input(self):
-        """Returns a list with the prepared input to be injected into the NN.
+        """Gets the prepared input to be injected into the NN.
 
-        The list contains two NumPy array, the first one containing the question information, and the second one having
-        the image.
+        Returns:
+            A list with two items, each of one a NumPy array. The first element contains the question and the second
+            one the image, both processed to be ready to be injected into the model
         """
 
         # Prepare question
@@ -57,18 +81,18 @@ class VQASample:
         return [question, image]
 
 
-class SampleType(Enum):
-    """Enumeration with the possible sample types"""
-
-    TRAIN = 0
-    VALIDATION = 1
-    TEST = 2
-
-
 class Question:
     """Class that holds the information of a single question of a VQA sample"""
 
-    def __init__(self, question_id, question, tokenizer):
+    def __init__(self, question_id, question, image_id, tokenizer=None):
+        """Instantiates a Question object.
+
+        Args:
+            question_id (int): unique question indentifier
+            question (str): question as a string
+            image_id (int): unique image identifier of the image related to this question
+            tokenizer (Tokenizer): if given, the question will be tokenized with it
+        """
         # Validate id
         try:
             self.id = int(question_id)
@@ -76,18 +100,45 @@ class Question:
                 raise ValueError('question_id has to be a positive integer')
         except:
             raise ValueError('question_id has to be a positive integer')
-        # Validate tokenizer class
-        if isinstance(tokenizer, Tokenizer):
-            self.tokenizer = tokenizer
-        else:
-            raise TypeError('The tokenizer param must be an instance of keras.preprocessing.text.Tokenizer')
+
+        # Validate image_id
+        try:
+            self.image_id = int(image_id)
+            if self.id < 0:
+                raise ValueError('image_id has to be a positive integer')
+        except:
+            raise ValueError('image_id has to be a positive integer')
+
         self.question = question
-        self._tokens_idx = tokenizer.texts_to_sequences([self.question])[0]
+        self._tokens_idx = []
 
-    def tokenize(self):
-        """Tokenizes the question using the specified tokenizer"""
+        # Validate tokenizer class
+        if tokenizer:
+            if isinstance(tokenizer, Tokenizer):
+                self.tokenizer = tokenizer
+                self._tokens_idx = self.tokenizer.texts_to_sequences([self.question])[0]
+            else:
+                raise TypeError('The tokenizer param must be an instance of keras.preprocessing.text.Tokenizer')
 
-        self._tokens_idx = self.tokenizer.texts_to_sequences([self.question])[0]
+    def tokenize(self, tokenizer=None):
+        """Tokenizes the question using the specified tokenizer. If none provided, it will use the one passed in the
+        constructor.
+
+        Returns:
+            A list with integer indexes, each index representing a word in the question
+
+        Raises:
+            Error in case that a tokenizer hasn't been provided in the method or at any point before
+        """
+
+        if tokenizer:
+            self.tokenizer = tokenizer
+            self._tokens_idx = self.tokenizer.texts_to_sequences([self.question])[0]
+        elif self.tokenizer:
+            self._tokens_idx = self.tokenizer.texts_to_sequences([self.question])[0]
+        else:
+            raise TypeError('tokenizer cannot be of type None, you have to provide an instance of '
+                            'keras.preprocessing.text.Tokenizer if you haven\'t provided one yet')
         return self._tokens_idx
 
     def get_tokens(self):
@@ -95,21 +146,7 @@ class Question:
 
         return self._tokens_idx
 
-    def set_tokenizer(self, tokenizer):
-        """Set the tokenizer to be used to tokenize the question.
-
-        If the question has already been tokenized, this method will update the tokens to match with the new tokenizer
-        """
-        
-        # Validate tokenizer class
-        if not isinstance(tokenizer, Tokenizer):
-            raise TypeError('The tokenizer param must be an instance of keras.preprocessing.text.Tokenizer')
-        self.tokenizer = tokenizer
-        # Recreate tokens if exist
-        if self._tokens_idx:
-            self.tokenize()
-
-    def get_token_length(self):
+    def get_tokens_length(self):
         """Returns the question length measured in number of tokens"""
 
         return len(self._tokens_idx)
@@ -118,25 +155,62 @@ class Question:
 class Answer:
     """Class that holds the information of a single answer of a VQA sample"""
 
-    def __init__(self, answer_id, answer, tokenizer):
+    def __init__(self, answer_id, answer, question_id, tokenizer=None):
+        """Instantiates an Answer object.
+
+        Args:
+            answer_id (int): unique answer indentifier
+            answer (str): answer as a string
+            question_id (int): unique question identifier of the question related to this answer
+            tokenizer (Tokenizer): if given, the question will be tokenized with it
+        """
+
+        # Validate id
         try:
             self.id = int(answer_id)
             if self.id < 0:
                 raise ValueError('answer_id has to be a positive integer')
         except:
             raise ValueError('answer_id has to be a positive integer')
-        # Validate tokenizer class
-        if isinstance(tokenizer, Tokenizer):
-            self.tokenizer = tokenizer
-        else:
-            raise TypeError('The tokenizer param must be an instance of keras.preprocessing.text.Tokenizer')
+
+        # Validate question_id
+        try:
+            self.question_id = int(question_id)
+            if self.id < 0:
+                raise ValueError('question_id has to be a positive integer')
+        except:
+            raise ValueError('question_id has to be a positive integer')
+
         self.answer = answer
-        self._tokens_idx = tokenizer.texts_to_sequences([self.answer])[0]
+        self._tokens_idx = []
 
-    def tokenize(self):
-        """Tokenizes the question using the specified tokenizer"""
+        # Validate tokenizer class
+        if tokenizer:
+            if isinstance(tokenizer, Tokenizer):
+                self.tokenizer = tokenizer
+                self._tokens_idx = self.tokenizer.texts_to_sequences([self.answer])[0]
+            else:
+                raise TypeError('The tokenizer param must be an instance of keras.preprocessing.text.Tokenizer')
 
-        self._tokens_idx = self.tokenizer.texts_to_sequences([self.answer])[0]
+    def tokenize(self, tokenizer=None):
+        """Tokenizes the answer using the specified tokenizer. If none provided, it will use the one passed in the
+        constructor.
+
+        Returns:
+            A list with integer indexes, each index representing a word in the question
+
+        Raises:
+            Error in case that a tokenizer hasn't been provided in the method or at any point before
+        """
+
+        if tokenizer:
+            self.tokenizer = tokenizer
+            self._tokens_idx = self.tokenizer.texts_to_sequences([self.answer])[0]
+        elif self.tokenizer:
+            self._tokens_idx = self.tokenizer.texts_to_sequences([self.answer])[0]
+        else:
+            raise TypeError('tokenizer cannot be of type None, you have to provide an instance of '
+                            'keras.preprocessing.text.Tokenizer if you haven\'t provided one yet')
         return self._tokens_idx
 
     def get_tokens(self):
@@ -144,40 +218,37 @@ class Answer:
 
         return self._tokens_idx
 
-    def set_tokenizer(self, tokenizer):
-        """Set the tokenizer to be used to tokenize the answer.
-
-        If the answer has already been tokenized, this method will update the tokens to match with the new tokenizer
-        """
-
-        # Validate tokenizer class
-        if not isinstance(tokenizer, Tokenizer):
-            raise TypeError('The tokenizer param must be an instance of keras.preprocessing.text.Tokenizer')
-        self.tokenizer = tokenizer
-        # Recreate tokens if exist
-        if self._tokens_idx:
-            self.tokenize()
-
 
 class Image:
     """Class that holds the information of a single image of a VQA sample, including the matrix representation"""
 
     def __init__(self, image_id, image_path):
         self.image_id = image_id
-        self.image_path = image_path
+        if os.path.isfile(image_path):
+            self.image_path = image_path
+        else:
+            raise ValueError('The image ' + image_path + ' does not exists')
         self._image = []
 
-    def load(self, data_type=np.float32):
-        """Loads the image from disk and stores it as a NumPy array of data_type values"""
+    def load(self, data_type=np.float32, mem=True):
+        """Loads the image from disk and stores it as a NumPy array of data_type values.
 
-        self._image = imread(self.image_path)
-        self._image = self._image.astype(data_type)
-        return self._image
+        If mem is False, the image array will not be hold as an attribute and it will only return it
+        """
 
-    def get_image_array(self):
-        """Returns the image as a NumPy array"""
+        image = imread(self.image_path)
+        image = image.astype(data_type)
+        if mem:
+            self._image = image
+        return image
+
+    def get_image_array(self, mem=True):
+        """Returns the image as a NumPy array.
+
+        If mem is False, the image array will not be hold as an attribute and it will only return it
+        """
 
         if self._image:
             return self._image
         else:
-            return self.load()
+            return self.load(mem=mem)
