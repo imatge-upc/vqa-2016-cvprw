@@ -1,5 +1,6 @@
 import os
 import json
+import random
 
 import numpy as np
 import cPickle as pickle
@@ -103,7 +104,7 @@ class VQADataset:
         # Ensure we have a tokenizer with a dictionary
         self._init_tokenizer(questions, answers)
 
-        aux_len = 0     # To compute the maximum question length
+        aux_len = 0  # To compute the maximum question length
         # Tokenize and encode questions and answers
         for _, question in questions.iteritems():
             question.tokenize(self.tokenizer)
@@ -139,8 +140,11 @@ class VQADataset:
 
             # Update interval
             batch_start += batch_size
+            # An epoch has finished
             if batch_start >= num_samples:
                 batch_start = 0
+                # Change the order so the model won't see the samples in the same order in the next epoch
+                random.shuffle(self.samples)
             batch_end = batch_start + batch_size
             if batch_end > num_samples:
                 batch_end = num_samples

@@ -57,8 +57,11 @@ class VQASample:
         else:
             self.question_max_len = question.get_tokens_length()
 
-    def get_input(self):
+    def get_input(self, mem=False):
         """Gets the prepared input to be injected into the NN.
+
+        Args:
+            mem (bool): Either to keep the image in memory (the Image object will hold the actual image data) or not
 
         Returns:
             A list with two items, each of one a NumPy array. The first element contains the question and the second
@@ -70,7 +73,7 @@ class VQASample:
         question = pad_sequences(question, self.question_max_len)
 
         # Prepare image
-        image = self.image.get_image_array()
+        image = self.image.get_image_array(mem)
         image = imresize(image, (224, 224, 3))
         # Remove mean
         image[:, :, 2] -= 103.939
