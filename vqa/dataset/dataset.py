@@ -133,7 +133,7 @@ class VQADataset:
             A = np.zeros((batch_size, len(self.tokenizer.word_index)), dtype=np.int8)
             # Assign each sample in the batch
             for idx, sample in enumerate(self.samples[batch_start:batch_end]):
-                Q[idx], I[idx] = sample.get_input()
+                Q[idx], I[idx] = sample.get_input(self.question_max_len)
                 A[idx] = sample.get_output()
 
             yield ([Q, I], A)
@@ -161,7 +161,8 @@ class VQADataset:
 
         questions_json = json.load(open(questions_json_path))
         questions = {question['question_id']:
-                     Question(question['question_id'], question['question'].encode('utf8'), question['image_id'])
+                     Question(question['question_id'], question['question'].encode('utf8'), question['image_id'],
+                              self.vocab_size)
                      for question in questions_json['questions']}
         return questions
 
@@ -177,7 +178,8 @@ class VQADataset:
 
         answers_json = json.load(open(answers_json_path))
         answers = {answer['answer_id']:
-                   Answer(answer['answer_id'], answer['answer'].encode('utf8'), annotation['question_id'])
+                   Answer(answer['answer_id'], answer['answer'].encode('utf8'), annotation['question_id'],
+                          self.vocab_size)
                    for annotation in answers_json['annotations'] for answer in annotation['answers']}
         return answers
 

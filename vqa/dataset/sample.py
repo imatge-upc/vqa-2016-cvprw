@@ -17,10 +17,9 @@ class VQASample:
         image (Image)
         answer (Answer): only if dataset_type is different than TEST
         dataset_type (DatasetType): the type of dataset this sample belongs to
-        question_max_len: The maximum length allowed for a question
     """
 
-    def __init__(self, question, image, answer=None, dataset_type=DatasetType.TRAIN, question_max_len=None):
+    def __init__(self, question, image, answer=None, dataset_type=DatasetType.TRAIN):
         """Instantiate a VQASample.
 
         Args:
@@ -28,39 +27,38 @@ class VQASample:
             image (Image): Image object with, at least, the reference to the image path
             answer (Answer): Answer object with the answer sample. If dataset type is TEST, no answer is expected
             dataset_type (DatasetType): type of dataset this sample belongs to. The default is DatasetType.TRAIN
-            question_max_len (int): question maximum length
         """
+        # Question
         if isinstance(question, Question):
             self.question = question
         else:
             raise TypeError('question has to be an instance of class Question')
+
+        # Answer
         if dataset_type != DatasetType.TEST:
             if isinstance(answer, Answer):
                 self.answer = answer
             else:
                 raise TypeError('answer has to be an instance of class Answer')
+
+        # Image
         if isinstance(image, Image):
             self.image = image
         else:
             raise TypeError('image has to be an instance of class Image')
+
+        # Dataset type
         if isinstance(dataset_type, DatasetType):
             self.sample_type = dataset_type
         else:
             raise TypeError('dataset_type has to be one of the DatasetType defined values')
-        if question_max_len:
-            try:
-                self.question_max_len = int(question_max_len)
-                if self.question_max_len < 0:
-                    raise ValueError('question_max_len has to be a positive integer')
-            except:
-                raise TypeError('question_max_len has to be a postivie integer')
-        else:
-            self.question_max_len = question.get_tokens_length()
 
-    def get_input(self, mem=False):
+    def get_input(self, question_max_len, mem=False):
         """Gets the prepared input to be injected into the NN.
 
         Args:
+            question_max_len (int): The maximum length of the question. The question will be truncated if it's larger
+                or padded with zeros if it's shorter
             mem (bool): Either to keep the image in memory (the Image object will hold the actual image data) or not
 
         Returns:
@@ -70,7 +68,7 @@ class VQASample:
 
         # Prepare question
         question = self.question.get_tokens()
-        question = pad_sequences(question, self.question_max_len)
+        question = pad_sequences(question, question_max_len)
 
         # Prepare image
         image = self.image.get_image_array(mem)
@@ -91,7 +89,7 @@ class VQASample:
         # TODO: extend to multiple word answers
         idx = answer[0]  # Get only one word
         # One-hot vector
-        answer = np.zeros(self.answer.tokenizer.nb_words + 1)
+        answer = np.zeros(self.answer.vocab_size)
         answer[idx] = 1
 
         return answer
@@ -100,13 +98,14 @@ class VQASample:
 class Question:
     """Class that holds the information of a single question of a VQA sample"""
 
-    def __init__(self, question_id, question, image_id, tokenizer=None):
+    def __init__(self, question_id, question, image_id, vocab_size, tokenizer=None):
         """Instantiates a Question object.
 
         Args:
             question_id (int): unique question indentifier
             question (str): question as a string
             image_id (int): unique image identifier of the image related to this question
+            vocab_size (int): size of the vocabulary
             tokenizer (Tokenizer): if given, the question will be tokenized with it
         """
         # Validate id
@@ -124,6 +123,14 @@ class Question:
                 raise ValueError('image_id has to be a positive integer')
         except:
             raise ValueError('image_id has to be a positive integer')
+
+        # Validate vocab_size
+        try:
+            self.vocab_size = int(vocab_size)
+            if self.vocab_size < 0:
+                raise ValueError('vocab_size has to be a positive integer')
+        except:
+            raise ValueError('vocab_size has to be a positive integer')
 
         self.question = question
         self._tokens_idx = []
@@ -155,6 +162,9 @@ class Question:
         else:
             raise TypeError('tokenizer cannot be of type None, you have to provide an instance of '
                             'keras.preprocessing.text.Tokenizer if you haven\'t provided one yet')
+
+        # Update question_max_length if not provided
+
         return self._tokens_idx
 
     def get_tokens(self):
@@ -171,13 +181,14 @@ class Question:
 class Answer:
     """Class that holds the information of a single answer of a VQA sample"""
 
-    def __init__(self, answer_id, answer, question_id, tokenizer=None):
+    def __init__(self, answer_id, answer, question_id, vocab_size, tokenizer=None):
         """Instantiates an Answer object.
 
         Args:
             answer_id (int): unique answer indentifier
             answer (str): answer as a string
             question_id (int): unique question identifier of the question related to this answer
+            vocab_size (int): size of the vocabulary
             tokenizer (Tokenizer): if given, the question will be tokenized with it
         """
 
@@ -196,6 +207,14 @@ class Answer:
                 raise ValueError('question_id has to be a positive integer')
         except:
             raise ValueError('question_id has to be a positive integer')
+
+        # Validate vocab_size
+        try:
+            self.vocab_size = int(vocab_size)
+            if self.vocab_size < 0:
+                raise ValueError('vocab_size has to be a positive integer')
+        except:
+            raise ValueError('vocab_size has to be a positive integer')
 
         self.answer = answer
         self._tokens_idx = []
