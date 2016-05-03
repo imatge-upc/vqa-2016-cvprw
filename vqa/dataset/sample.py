@@ -78,7 +78,20 @@ class VQASample:
         image[:, :, 0] -= 123.68
         image = image.transpose((2, 0, 1))  # Change axes order so the channel is the first dimension
 
-        return [question, image]
+        return question, image
+
+    def get_output(self):
+        if self.sample_type == DatasetType.TEST:
+            raise TypeError('This sample is of type DatasetType.TEST and thus does not have an associated output')
+
+        answer = self.answer.get_tokens()
+        # TODO: extend to multiple word answers
+        idx = answer[0]  # Get only one word
+        # One-hot vector
+        answer = np.zeros(self.answer.tokenizer.nb_words + 1)
+        answer[idx] = 1
+
+        return answer
 
 
 class Question:
