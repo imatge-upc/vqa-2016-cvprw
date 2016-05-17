@@ -68,16 +68,18 @@ class VQASample:
 
         # Prepare question
         question = self.question.get_tokens()
-        question = pad_sequences(question, question_max_len)
+        question = pad_sequences([question], question_max_len)[0]
 
         # Prepare image
-        image = self.image.get_image_array(mem)
-        image = imresize(image, (224, 224, 3))
-        # Remove mean
-        image[:, :, 2] -= 103.939
-        image[:, :, 1] -= 116.779
-        image[:, :, 0] -= 123.68
-        image = image.transpose((2, 0, 1))  # Change axes order so the channel is the first dimension
+        try:
+            image = self.image.transform(mem=mem)
+        except IndexError as error:
+            # TODO: change error loging method
+            print('IndexError in image: ' + self.image.image_path)
+            f = open('log_index_error', 'a')
+            f.write(self.image.image_path + '\n')
+            f.close()
+            raise IndexError(error)
 
         return question, image
 
@@ -86,13 +88,15 @@ class VQASample:
             raise TypeError('This sample is of type DatasetType.TEST and thus does not have an associated output')
 
         answer = self.answer.get_tokens()
-        # TODO: extend to multiple word answers
-        idx = answer[0]  # Get only one word
-        # One-hot vector
-        answer = np.zeros(self.answer.vocab_size)
-        answer[idx] = 1
+        one_hot_ans = np.zeros(self.answer.vocab_size)
 
-        return answer
+        if answer:
+            # TODO: extend to multiple word answers
+            idx = answer[0]  # Get only one word
+            # One-hot vector
+            one_hot_ans[idx] = 1
+
+        return one_hot_ans
 
 
 class Question:
@@ -181,13 +185,14 @@ class Question:
 class Answer:
     """Class that holds the information of a single answer of a VQA sample"""
 
-    def __init__(self, answer_id, answer, question_id, vocab_size, tokenizer=None):
+    def __init__(self, answer_id, answer, question_id, image_id, vocab_size, tokenizer=None):
         """Instantiates an Answer object.
 
         Args:
             answer_id (int): unique answer indentifier
             answer (str): answer as a string
             question_id (int): unique question identifier of the question related to this answer
+            image_id (int): unique image identifier of the image related to this answer
             vocab_size (int): size of the vocabulary
             tokenizer (Tokenizer): if given, the question will be tokenized with it
         """
@@ -207,6 +212,14 @@ class Answer:
                 raise ValueError('question_id has to be a positive integer')
         except:
             raise ValueError('question_id has to be a positive integer')
+
+        # Validate image_id
+        try:
+            self.image_id = int(image_id)
+            if self.id < 0:
+                raise ValueError('image_id has to be a positive integer')
+        except:
+            raise ValueError('image_id has to be a positive integer')
 
         # Validate vocab_size
         try:
@@ -263,27 +276,45 @@ class Image:
             self.image_path = image_path
         else:
             raise ValueError('The image ' + image_path + ' does not exists')
-        self._image = []
+        self._image = np.array([])
+        self._transformed_image = np.array([])
 
-    def load(self, data_type=np.float32, mem=True):
+    def load(self, mem=True):
         """Loads the image from disk and stores it as a NumPy array of data_type values.
 
-        If mem is False, the image array will not be hold as an attribute and it will only return it
+        If mem is False, the image array will not be hold as an attribute and the method will only return the image
         """
 
-        image = imread(self.image_path)
-        image = image.astype(data_type)
-        if mem:
-            self._image = image
-        return image
-
-    def get_image_array(self, mem=True):
-        """Returns the image as a NumPy array.
-
-        If mem is False, the image array will not be hold as an attribute and it will only return it
-        """
-
-        if self._image:
+        if len(self._image):
             return self._image
         else:
-            return self.load(mem=mem)
+            image = imread(self.image_path)
+            image = image.astype(np.float16)
+            if mem:
+                self._image = image
+            return image
+
+    def transform(self, mem=True):
+        """Applies a transformation to the image so that it has the expected format.
+
+        If mem is False, the transformed image array will not be hold as an attribute and the method will only
+        return the transformed image.
+
+        This method expects the image to be RGB, otherwise it throws an Error
+        """
+
+        if len(self._transformed_image):
+            return self._transformed_image
+        else:
+            image = self.load(False)
+            image = imresize(image, (224, 224, 3)).astype(np.float16)
+            # Remove mean
+            image[:, :, 2] -= 103.939
+            image[:, :, 1] -= 116.779
+            image[:, :, 0] -= 123.68
+            image = image.transpose((2, 0, 1))  # Change axes order so the channel is the first dimension
+
+            if mem:
+                self._transformed_image = image
+
+            return image
