@@ -4,8 +4,9 @@ import h5py
 import shutil
 import timeit
 import cPickle as pickle
+import json
 
-from keras.callbacks import Callback
+from keras.callbacks import Callback, ModelCheckpoint, EarlyStopping
 from keras.models import Sequential, model_from_json
 from keras.layers.embeddings import Embedding
 from keras.layers.core import Dropout, RepeatVector, Merge, Dense, Flatten
@@ -23,12 +24,13 @@ PREPROC_DATA_PATH = DATA_PATH + 'preprocessed/'
 TRAIN_IMAGES_PATH = DATA_PATH + 'train/images/'
 LIST_IMAGES_FILE_PATH = TRAIN_IMAGES_PATH + 'list_images.json'
 TOKENIZER_PATH = PREPROC_DATA_PATH + 'tokenizer.p'
-DATASET_PREPROCESSED_PATH = PREPROC_DATA_PATH + 'dataset.p'
+DATASET_PREPROCESSED_PATH = PREPROC_DATA_PATH + 'train_dataset.p'
 MODELS_DIR_PATH = '../models/'
 MODEL_PATH = MODELS_DIR_PATH + 'model.json'
-MODEL_WEIGHTS_PATH = MODELS_DIR_PATH + 'weights'
-VGG_WEIGHTS_PATH = MODELS_DIR_PATH + 'vgg16_weights.h5'
-TRUNCATED_VGG_WEIGHTS_PATH = MODELS_DIR_PATH + 'truncated_vgg16_weights.h5'
+WEIGHTS_DIR_PATH = MODELS_DIR_PATH + 'weights/'
+MODEL_WEIGHTS_PATH = WEIGHTS_DIR_PATH + 'model_weights'
+VGG_WEIGHTS_PATH = WEIGHTS_DIR_PATH + 'vgg16_weights.h5'
+TRUNCATED_VGG_WEIGHTS_PATH = WEIGHTS_DIR_PATH + 'truncated_vgg16_weights.h5'
 # Constants
 VOCABULARY_SIZE = 20000
 EMBED_HIDDEN_SIZE = 100
@@ -164,17 +166,29 @@ else:
     print('Model loaded. Execution time: %f' % elapsed_time)
 
 
-class SaveWeightsCallback(Callback):
-    def on_epoch_end(self, epoch, logs={}):
-        self.model.save_weights(MODEL_WEIGHTS_PATH, overwrite=True)
+# ------------------------------- CALLBACKS ----------------------------------
+class LossHistoryCallback(Callback):
+    def on_train_begin(self, logs={}):
+        self.losses = []
 
     def on_batch_end(self, batch, logs={}):
-        print('Batch end')
+        self.losses.append(logs.get('loss'))
+
+loss_callback = LossHistoryCallback()
+save_weights_callback = ModelCheckpoint(MODEL_WEIGHTS_PATH, monitor='loss', save_best_only=True, mode='min')
+stop_callback = EarlyStopping(monitor='loss', patience=2, mode='min')
 
 # ------------------------------- TRAIN MODEL ----------------------------------
 print('Start training model...')
 start_time = timeit.default_timer()
 model.fit_generator(dataset.batch_generator(BATCH_SIZE), samples_per_epoch=dataset.size(), nb_epoch=NUM_EPOCHS,
-                    callbacks=[SaveWeightsCallback()])
+                    callbacks=[loss_callback, save_weights_callback, stop_callback])
 elapsed_time = timeit.default_timer() - start_time
 print('Model trained. Execution time: %f' % elapsed_time)
+
+print('Saving loss history...')
+with open(MODELS_DIR_PATH + 'losses.json') as f:
+    json.dump(loss_callback.losses, f)
+print('Losses saved')
+
+
