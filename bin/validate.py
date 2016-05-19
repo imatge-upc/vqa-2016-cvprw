@@ -15,7 +15,7 @@ from vqa.model.model import VQAModel
 # Paths
 DATA_PATH = '../data/'
 PREPROC_DATA_PATH = DATA_PATH + 'preprocessed/'
-DATASET_PREPROCESSED_PATH = PREPROC_DATA_PATH + 'train_dataset.p'
+DATASET_PREPROCESSED_PATH = PREPROC_DATA_PATH + 'validate_dataset.p'
 MODELS_DIR_PATH = '../models/'
 MODEL_PATH = MODELS_DIR_PATH + 'model.json'
 WEIGHTS_DIR_PATH = MODELS_DIR_PATH + 'weights/'
@@ -25,14 +25,14 @@ TRUNCATED_VGG_WEIGHTS_PATH = WEIGHTS_DIR_PATH + 'truncated_vgg16_weights.h5'
 # Constants
 VOCABULARY_SIZE = 20000
 NUM_EPOCHS = 40
-BATCH_SIZE = 64
+BATCH_SIZE = 32
 
 # --------------- CREATE DATASET -----------------
 if not os.path.isfile(DATASET_PREPROCESSED_PATH):
     print('Creating dataset...')
     start_time = timeit.default_timer()
-    dataset = VQADataset(DatasetType.TRAIN, '../data/train/questions', '../data/train/annotations',
-                         '../data/train/images/', '../data/preprocessed/tokenizer.p', vocab_size=VOCABULARY_SIZE)
+    dataset = VQADataset(DatasetType.VALIDATION, '../data/val/questions', '../data/val/annotations',
+                         '../data/val/images/', '../data/preprocessed/tokenizer.p', vocab_size=VOCABULARY_SIZE)
     print('Preparing dataset...')
     dataset.prepare()
     elapsed_time = timeit.default_timer() - start_time
@@ -58,23 +58,19 @@ model.prepare()
 
 # ------------------------------- CALLBACKS ----------------------------------
 class LossHistoryCallback(Callback):
-    def __init__(self):
-        super(LossHistoryCallback, self).__init__()
+    def on_train_begin(self, logs={}):
         self.losses = []
 
     def on_batch_end(self, batch, logs={}):
         self.losses.append(logs.get('loss'))
 
-    def on_epoch_end(self, epoch, logs={}):
-        with open(MODELS_DIR_PATH + 'losses.json') as f:
-            json.dump(self.losses, f)
-
 
 loss_callback = LossHistoryCallback()
 
-# ------------------------------- TRAIN MODEL ----------------------------------
+# ------------------------------- VALIDATE MODEL ----------------------------------
 history = model.train(dataset, NUM_EPOCHS, BATCH_SIZE, [loss_callback])
+
 print('Saving history...')
-with open(MODELS_DIR_PATH + 'train_history.json') as f:
+with open(MODELS_DIR_PATH + 'validate_history.json') as f:
     json.dump(history, f)
 print('History saved')

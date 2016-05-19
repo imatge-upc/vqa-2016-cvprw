@@ -1,12 +1,12 @@
-import h5py
-import os
 import shutil
 
+import h5py
+import os
 from keras.callbacks import ModelCheckpoint, EarlyStopping
-from keras.layers.core import Dropout, RepeatVector, Merge, Dense, Flatten
 from keras.layers.convolutional import Convolution2D, MaxPooling2D, ZeroPadding2D
-from keras.layers.recurrent import LSTM
+from keras.layers.core import Dropout, RepeatVector, Merge, Dense, Flatten
 from keras.layers.embeddings import Embedding
+from keras.layers.recurrent import LSTM
 from keras.models import model_from_json, Sequential
 
 
@@ -60,26 +60,36 @@ class VQAModel:
         self.model_weights_path = model_weights_path
 
     def prepare(self):
-        if os.path.isfile(self.model_path):
+        if not os.path.isfile(self.model_path):
             self._create_model()
         else:
             self._load()
 
     def train(self, dataset, num_epochs=10, batch_size=32, callbacks=None):
-        print('Start training model...')
         stop_callback = EarlyStopping(monitor='loss', patience=2, mode='min')
         own_callbacks = [stop_callback]
         if self.model_weights_path:
-            save_weights_callback = ModelCheckpoint(self.model_weights_path, monitor='loss', save_best_only=True, mode='min')
+            save_weights_callback = ModelCheckpoint(self.model_weights_path, monitor='loss', save_best_only=True,
+                                                    mode='min')
             own_callbacks.append(save_weights_callback)
-        self.model.fit_generator(dataset.batch_generator(batch_size), samples_per_epoch=dataset.size(),
-                                 nb_epoch=num_epochs, callbacks=(own_callbacks + callbacks))
-        print('Model trained')
+
+        return self.model.fit_generator(dataset.batch_generator(batch_size), samples_per_epoch=dataset.size(),
+                                        nb_epoch=num_epochs, callbacks=(own_callbacks + callbacks))
+
+    def validate(self, dataset, batch_size=32, model_weights_path=None):
+        if model_weights_path:
+            self.model_weights_path = model_weights_path
+        elif self.model_weights_path:
+            pass
+        else:
+            raise ValueError('You must provide the weights for the model to be able to evaluate the validation set')
+
+        self.model.load_weights(self.model_weights_path)
+
+        return self.model.evaluate_generator(dataset.batch_generator(batch_size), dataset.size())
 
     def _load(self):
-        print('Loading model...')
         self.model = model_from_json(open(self.model_path, 'r').read())
-        print('Model loaded')
 
     def _create_model(self):
         # Question
@@ -137,7 +147,6 @@ class VQAModel:
             quit()
 
         if not os.path.isfile(self.truncated_vgg16_weights_path):
-            print('Preparing VGG-16 weights...')
             shutil.copy(self.vgg16_weights_path, self.truncated_vgg16_weights_path)
             trunc_vgg_weights = h5py.File(self.vgg16_weights_path)
             # Remove last 5 layers' weights
@@ -146,7 +155,6 @@ class VQAModel:
             trunc_vgg_weights.attrs.modify('nb_layers', 32)
             trunc_vgg_weights.flush()
             trunc_vgg_weights.close()
-            print('VGG weights ready to use')
 
         im_model.load_weights(self.truncated_vgg16_weights_path)
 
@@ -158,13 +166,10 @@ class VQAModel:
         self.model.add(LSTM(VQAModel.EMBED_HIDDEN_SIZE, return_sequences=False))
         self.model.add(Dropout(0.5))
         self.model.add(Dense(self.vocabulary_size, activation='softmax'))
-        print('Model created')
 
-        print('Compiling model...')
         self.model.compile(optimizer='adam', loss='categorical_crossentropy', class_mode='categorical')
-        print('Model compiled')
 
-        print('Saving model...')
         model_json = self.model.to_json()
-        open(self.model_path, 'w').write(model_json)
-        print('Model saved')
+        with open(self.model_path, 'w') as f:
+            f.write(model_json)
+

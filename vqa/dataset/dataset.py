@@ -217,8 +217,14 @@ class VQADataset:
         Returns:
             A dictionary of Image instances with their id as key
         """
+        if self.dataset_type == DatasetType.TRAIN:
+            domain = 'COCO_train2014_'
+        elif self.dataset_type == DatasetType.VALIDATION:
+            domain = 'COCO_val2014_'
+        else:
+            domain = 'COCO_test2015_'
 
-        images = {image_id: Image(image_id, images_path + 'COCO_train2014_' + str(image_id).zfill(12) + '.jpg')
+        images = {image_id: Image(image_id, images_path + domain + str(image_id).zfill(12) + '.jpg')
                   for image_id in image_ids}
 
         return images
