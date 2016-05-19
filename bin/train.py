@@ -25,7 +25,7 @@ TRUNCATED_VGG_WEIGHTS_PATH = WEIGHTS_DIR_PATH + 'truncated_vgg16_weights.h5'
 # Constants
 VOCABULARY_SIZE = 20000
 NUM_EPOCHS = 40
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 
 # --------------- CREATE DATASET -----------------
 if not os.path.isfile(DATASET_PREPROCESSED_PATH):
@@ -58,19 +58,22 @@ model.prepare()
 
 # ------------------------------- CALLBACKS ----------------------------------
 class LossHistoryCallback(Callback):
-    def on_train_begin(self, logs={}):
+    def __init__(self):
+        super(LossHistoryCallback, self).__init__()
         self.losses = []
 
     def on_batch_end(self, batch, logs={}):
         self.losses.append(logs.get('loss'))
 
+    def on_epoch_end(self, epoch, logs={}):
+        with open(MODELS_DIR_PATH + 'losses.json') as f:
+            json.dump(self.losses, f)
+
 
 loss_callback = LossHistoryCallback()
 
 # ------------------------------- TRAIN MODEL ----------------------------------
-# model.train(dataset, NUM_EPOCHS, BATCH_SIZE, [loss_callback])
-#
-# print('Saving loss history...')
-# with open(MODELS_DIR_PATH + 'losses.json') as f:
-#     json.dump(loss_callback.losses, f)
-# print('Losses saved')
+history = model.train(dataset, NUM_EPOCHS, BATCH_SIZE, [loss_callback])
+print('Saving history...')
+with open(MODELS_DIR_PATH + 'history.json') as f:
+    json.dump(history, f)
