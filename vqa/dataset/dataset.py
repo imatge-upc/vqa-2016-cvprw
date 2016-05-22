@@ -137,7 +137,7 @@ class VQADataset:
 
         while True:
             # Initialize matrix
-            I = np.zeros((batch_size, 3, 224, 224), dtype=np.float32)
+            I = np.zeros((batch_size, 3, 224, 224), dtype=np.float16)
             Q = np.zeros((batch_size, self.question_max_len), dtype=np.int32)
             A = np.zeros((batch_size, self.vocab_size), dtype=np.int8)
             # Assign each sample in the batch
@@ -161,6 +161,22 @@ class VQADataset:
             batch_end = batch_start + batch_size
             if batch_end > num_samples:
                 batch_end = num_samples
+
+    def get_dataset_array(self):
+        # Load all the images in memory
+        map(lambda sample: sample.image.transform(True), self.samples)
+        output_array = []
+        images_list = []
+        questions_list = []
+        for sample in self.samples:
+            output_array.append(sample.get_output())
+            questions_list.append(sample.get_input()[0])
+            images_list.append(sample.get_input()[1])
+
+        input_array = [np.array(questions_list), np.array(images_list)]
+        output_array = np.array(output_array)
+
+        return input_array, output_array
 
     def size(self):
         """Returns the size (number of examples) of the dataset"""
@@ -217,8 +233,14 @@ class VQADataset:
         Returns:
             A dictionary of Image instances with their id as key
         """
+        if self.dataset_type == DatasetType.TRAIN:
+            domain = 'COCO_train2014_'
+        elif self.dataset_type == DatasetType.VALIDATION:
+            domain = 'COCO_val2014_'
+        else:
+            domain = 'COCO_test2015_'
 
-        images = {image_id: Image(image_id, images_path + 'COCO_train2014_' + str(image_id).zfill(12) + '.jpg')
+        images = {image_id: Image(image_id, images_path + domain + str(image_id).zfill(12) + '.jpg')
                   for image_id in image_ids}
 
         return images

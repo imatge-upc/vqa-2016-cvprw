@@ -1,12 +1,11 @@
 import cPickle as pickle
 import json
-import shutil
 import sys
 import timeit
-import numpy as np
+
 import h5py
 import os
-
+import shutil
 from keras.callbacks import Callback, ModelCheckpoint, EarlyStopping
 from keras.layers.convolutional import Convolution2D, MaxPooling2D, ZeroPadding2D
 from keras.layers.core import Dropout, RepeatVector, Merge, Dense, Flatten
@@ -17,30 +16,32 @@ from keras.models import Sequential, model_from_json
 sys.path.append('..')
 
 from vqa.dataset.dataset import VQADataset, DatasetType
+from vqa.model.model import VQAModel
 
 # ------------------------------ CONSTANTS ------------------------------
 # Paths
 DATA_PATH = '../data/'
 PREPROC_DATA_PATH = DATA_PATH + 'preprocessed/'
-DATASET_PREPROCESSED_PATH = PREPROC_DATA_PATH + 'train_dataset.p'
+DATASET_PREPROCESSED_PATH = PREPROC_DATA_PATH + 'validate_dataset.p'
 MODELS_DIR_PATH = '../models/'
 MODEL_PATH = MODELS_DIR_PATH + 'model.json'
 WEIGHTS_DIR_PATH = MODELS_DIR_PATH + 'weights/'
-MODEL_WEIGHTS_PATH = WEIGHTS_DIR_PATH + 'model_weights.{epoch:02d}.hdf5'
+MODEL_WEIGHTS_PATH = WEIGHTS_DIR_PATH + 'model_weights'
 VGG_WEIGHTS_PATH = WEIGHTS_DIR_PATH + 'vgg16_weights.h5'
 TRUNCATED_VGG_WEIGHTS_PATH = WEIGHTS_DIR_PATH + 'truncated_vgg16_weights.h5'
 # Constants
 VOCABULARY_SIZE = 20000
+QUESTION_MAX_LEN = 22
 EMBED_HIDDEN_SIZE = 100
 NUM_EPOCHS = 40
-BATCH_SIZE = 64
+BATCH_SIZE = 32
 
 # --------------- CREATE DATASET -----------------
 if not os.path.isfile(DATASET_PREPROCESSED_PATH):
     print('Creating dataset...')
     start_time = timeit.default_timer()
-    dataset = VQADataset(DatasetType.TRAIN, '../data/train/questions', '../data/train/annotations',
-                         '../data/train/images/', '../data/preprocessed/tokenizer.p', vocab_size=VOCABULARY_SIZE)
+    dataset = VQADataset(DatasetType.VALIDATION, '../data/val/questions', '../data/val/annotations',
+                         '../data/val/images/', '../data/preprocessed/tokenizer.p', vocab_size=VOCABULARY_SIZE)
     print('Preparing dataset...')
     dataset.prepare()
     elapsed_time = timeit.default_timer() - start_time
@@ -65,7 +66,7 @@ if not os.path.isfile(MODEL_PATH):
     # Question
     query_model = Sequential()
     query_model.add(
-        Embedding(VOCABULARY_SIZE, EMBED_HIDDEN_SIZE, input_length=dataset.question_max_len, mask_zero=True))
+        Embedding(VOCABULARY_SIZE, EMBED_HIDDEN_SIZE, input_length=QUESTION_MAX_LEN, mask_zero=True))
     query_model.add(Dropout(0.5))
 
     # Image
@@ -129,7 +130,7 @@ if not os.path.isfile(MODEL_PATH):
 
     im_model.load_weights(TRUNCATED_VGG_WEIGHTS_PATH)
 
-    im_model.add(RepeatVector(dataset.question_max_len))
+    im_model.add(RepeatVector(QUESTION_MAX_LEN))
 
     # Merging
     model = Sequential()
@@ -166,39 +167,31 @@ else:
 
 # ------------------------------- CALLBACKS ----------------------------------
 class LossHistoryCallback(Callback):
-    def __init__(self):
-        super(LossHistoryCallback, self).__init__()
+    def on_train_begin(self, logs={}):
         self.losses = []
 
     def on_batch_end(self, batch, logs={}):
         self.losses.append(logs.get('loss'))
 
     def on_epoch_end(self, epoch, logs={}):
-        try:
-            with h5py.File(MODELS_DIR_PATH + 'train_losses.h5', 'a') as f:
-                if 'train_losses' in f:
-                    del f['train_losses']
-                f.create_dataset('train_losses', data=np.array(self.losses))
-        except (TypeError, RuntimeError):
-            print('Couldnt save losses')
+        with open(MODELS_DIR_PATH + 'validate_losses.json', 'w') as f:
+            json.dump(self.losses, f)
 
 
 loss_callback = LossHistoryCallback()
-save_weights_callback = ModelCheckpoint(MODEL_WEIGHTS_PATH, monitor='loss')
-stop_callback = EarlyStopping(monitor='loss', patience=2, mode='min')
 
-# ------------------------------- TRAIN MODEL ----------------------------------
-print('Start training model...')
-start_time = timeit.default_timer()
-history = model.fit_generator(dataset.batch_generator(BATCH_SIZE), samples_per_epoch=dataset.size(),
-                              nb_epoch=NUM_EPOCHS, callbacks=[save_weights_callback, loss_callback, stop_callback])
-elapsed_time = timeit.default_timer() - start_time
-print('Model trained. Execution time: %f' % elapsed_time)
-
-print('Saving history...')
-try:
-    with open(MODELS_DIR_PATH + 'train_history.json', 'w') as f:
-        json.dump(history, f)
-except TypeError:
-    print('Couldnt save history')
-print('History saved')
+# ------------------------------- VALIDATE MODEL ----------------------------------
+print('Loading weights...')
+model.load_weights(MODEL_WEIGHTS_PATH)
+print('Weights loaded')
+# print('Getting dataset array...')
+# dataset.get_dataset_array()
+# print('Dataset array done')
+# print('Evaluating...')
+# history = model.evaluate_generator(dataset.batch_generator(BATCH_SIZE), dataset.size())
+# print('Evaluation completed')
+#
+# print('Saving history...')
+# with open(MODELS_DIR_PATH + 'validate_history.json') as f:
+#     json.dump(history, f)
+# print('History saved')
