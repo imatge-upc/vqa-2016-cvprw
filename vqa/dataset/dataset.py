@@ -162,21 +162,27 @@ class VQADataset:
             if batch_end > num_samples:
                 batch_end = num_samples
 
-    def get_dataset_array(self):
+    def get_dataset_input_array(self):
         # Load all the images in memory
         map(lambda sample: sample.image.transform(True), self.samples)
-        output_array = []
         images_list = []
         questions_list = []
         for sample in self.samples:
-            output_array.append(sample.get_output())
             questions_list.append(sample.get_input()[0])
             images_list.append(sample.get_input()[1])
 
         input_array = [np.array(questions_list), np.array(images_list)]
+
+        return input_array
+
+    def get_dataset_output_array(self):
+        output_array = []
+        for sample in self.samples:
+            output_array.append(sample.get_output())
+
         output_array = np.array(output_array)
 
-        return input_array, output_array
+        return output_array
 
     def size(self):
         """Returns the size (number of examples) of the dataset"""
