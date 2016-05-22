@@ -85,7 +85,7 @@ class VQAModel:
             raise ValueError('You must provide the weights for the model to be able to evaluate the validation set')
 
         self.model.load_weights(self.model_weights_path)
-
+        # TODO: change evalutate generator
         return self.model.evaluate_generator(dataset.batch_generator(batch_size), dataset.size())
 
     def _load(self):
@@ -172,4 +172,3 @@ class VQAModel:
         model_json = self.model.to_json()
         with open(self.model_path, 'w') as f:
             f.write(model_json)
-

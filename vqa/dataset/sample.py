@@ -306,15 +306,18 @@ class Image:
         if len(self._transformed_image):
             return self._transformed_image
         else:
-            image = self.load(False)
-            image = imresize(image, (224, 224, 3)).astype(np.float16)
-            # Remove mean
-            image[:, :, 2] -= 103.939
-            image[:, :, 1] -= 116.779
-            image[:, :, 0] -= 123.68
-            image = image.transpose((2, 0, 1))  # Change axes order so the channel is the first dimension
+            try:
+                image = self.load(False)
+                image = imresize(image, (224, 224, 3)).astype(np.float16)
+                # Remove mean
+                image[:, :, 2] -= 103.939
+                image[:, :, 1] -= 116.779
+                image[:, :, 0] -= 123.68
+                image = image.transpose((2, 0, 1))  # Change axes order so the channel is the first dimension
 
-            if mem:
-                self._transformed_image = image
+                if mem:
+                    self._transformed_image = image
+            except IndexError as error:
+                image = np.zeros((3, 224, 224), dtype=np.float16)
 
             return image

@@ -1,3 +1,4 @@
+cycler==0.10.0
 Cython==0.23.4
 decorator==4.0.9
 enum34==1.1.3
@@ -10,8 +11,9 @@ ipython==4.1.2
 ipython-genutils==0.1.0
 itsdangerous==0.24
 Jinja2==2.8
-Keras==1.0.3
+Keras==0.3.2
 MarkupSafe==0.23
+matplotlib==1.5.1
 mock==2.0.0
 numpy==1.11.0
 ordereddict==1.1
@@ -21,6 +23,9 @@ pexpect==4.0.1
 pickleshare==0.6
 Pillow==3.2.0
 ptyprocess==0.5.1
+pyparsing==2.1.4
+python-dateutil==2.5.3
+pytz==2016.4
 PyYAML==3.11
 scipy==0.17.1
 simplegeneric==0.8.1
