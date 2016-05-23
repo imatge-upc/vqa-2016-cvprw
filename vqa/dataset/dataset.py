@@ -62,11 +62,11 @@ class VQADataset:
             raise ValueError('The directory ' + images_path + ' does not exists')
 
         # Answers file
-        if dataset_type != DatasetType.TEST:
-            if answers_path and os.path.isfile(answers_path):
-                self.answers_path = answers_path
-            else:
-                raise ValueError('You have to provide the answers path')
+        self.answers_path = answers_path
+        if answers_path and (not os.path.isfile(answers_path)):
+            raise ValueError('The directory ' + images_path + ' does not exists')
+        elif (not answers_path) and dataset_type != DatasetType.TEST:
+            raise ValueError('You have to provide an answers path')
 
         # Vocabulary size
         self.vocab_size = vocab_size
@@ -215,6 +215,10 @@ class VQADataset:
         Returns:
             A dictionary of Answer instances with a composed unique id as key
         """
+
+        # There are no answers in the test dataset
+        if self.dataset_type == DatasetType.TEST:
+            return {}
 
         answers_json = json.load(open(answers_json_path))
         # (annotation['question_id'] * 10 + (answer['answer_id'] - 1): creates a unique answer id
