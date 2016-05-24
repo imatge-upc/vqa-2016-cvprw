@@ -238,7 +238,7 @@ class VQADataset:
 
         Args:
             images_path (str): path to the directory containing the images
-            image_ids (set): ids of all the images in the dataset
+            image_ids (list): ids of all the images in the dataset
 
         Returns:
             A dictionary of Image instances with their id as key
@@ -297,12 +297,16 @@ class VQADataset:
             questions (dict): dictionary with all the Question instances
 
         Returns:
-            A set with all the image ids
+            A list with all the image ids
         """
 
-        image_ids = set()
+        image_ids = []
         for _, question in questions.iteritems():
             # As we are working with set, only unique elements will be saved
-            image_ids.add(question.image_id)
+            image_ids.append(question.image_id)
+
+        # Make unique and back to lists as they perform better in iterations
+        image_ids = set(image_ids)
+        image_ids = list(image_ids)
 
         return image_ids

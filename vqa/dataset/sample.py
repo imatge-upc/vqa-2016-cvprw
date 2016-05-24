@@ -76,9 +76,9 @@ class VQASample:
         except IndexError as error:
             # TODO: change error loging method
             print('IndexError in image: ' + self.image.image_path)
-            f = open('log_index_error', 'a')
-            f.write(self.image.image_path + '\n')
-            f.close()
+            # f = open('log_index_error', 'a')
+            # f.write(self.image.image_path + '\n')
+            # f.close()
             raise IndexError(error)
 
         return question, image
