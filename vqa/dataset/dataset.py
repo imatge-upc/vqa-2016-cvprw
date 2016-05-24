@@ -62,11 +62,11 @@ class VQADataset:
             raise ValueError('The directory ' + images_path + ' does not exists')
 
         # Answers file
-        if dataset_type != DatasetType.TEST:
-            if answers_path and os.path.isfile(answers_path):
-                self.answers_path = answers_path
-            else:
-                raise ValueError('You have to provide the answers path')
+        self.answers_path = answers_path
+        if answers_path and (not os.path.isfile(answers_path)):
+            raise ValueError('The directory ' + images_path + ' does not exists')
+        elif (not answers_path) and dataset_type != DatasetType.TEST:
+            raise ValueError('You have to provide an answers path')
 
         # Vocabulary size
         self.vocab_size = vocab_size
@@ -162,21 +162,27 @@ class VQADataset:
             if batch_end > num_samples:
                 batch_end = num_samples
 
-    def get_dataset_array(self):
+    def get_dataset_input_array(self):
         # Load all the images in memory
         map(lambda sample: sample.image.transform(True), self.samples)
-        output_array = []
         images_list = []
         questions_list = []
         for sample in self.samples:
-            output_array.append(sample.get_output())
             questions_list.append(sample.get_input()[0])
             images_list.append(sample.get_input()[1])
 
         input_array = [np.array(questions_list), np.array(images_list)]
+
+        return input_array
+
+    def get_dataset_output_array(self):
+        output_array = []
+        for sample in self.samples:
+            output_array.append(sample.get_output())
+
         output_array = np.array(output_array)
 
-        return input_array, output_array
+        return output_array
 
     def size(self):
         """Returns the size (number of examples) of the dataset"""
@@ -209,6 +215,10 @@ class VQADataset:
         Returns:
             A dictionary of Answer instances with a composed unique id as key
         """
+
+        # There are no answers in the test dataset
+        if self.dataset_type == DatasetType.TEST:
+            return {}
 
         answers_json = json.load(open(answers_json_path))
         # (annotation['question_id'] * 10 + (answer['answer_id'] - 1): creates a unique answer id
