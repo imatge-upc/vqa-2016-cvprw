@@ -1,9 +1,11 @@
-import os
+import cPickle as pickle
 import json
 import random
 
 import numpy as np
-import cPickle as pickle
+import os
+import scipy.io
+
 from keras.preprocessing.text import Tokenizer
 
 from sample import Question, Answer, Image, VQASample
@@ -61,6 +63,14 @@ class VQADataset:
         else:
             raise ValueError('The directory ' + images_path + ' does not exists')
 
+        # Features path
+        if self.dataset_type == DatasetType.TRAIN:
+            self.features_path = images_path + 'train_ImageNet_FisherVectors.mat'
+        elif self.dataset_type == DatasetType.VALIDATION:
+            self.features_path = images_path + 'val_ImageNet_FisherVectors.mat'
+        else:
+            self.features_path = images_path + 'test_ImageNet_FisherVectors.mat'
+
         # Answers file
         self.answers_path = answers_path
         if answers_path and (not os.path.isfile(answers_path)):
@@ -102,8 +112,8 @@ class VQADataset:
         print('Questions dict created')
         answers = self._create_answers_dict(self.answers_path)
         print('Answers dict created')
-        image_ids = self._get_image_ids(questions)
-        images = self._create_images_dict(self.images_path, image_ids)
+        image_ids = self._get_image_ids(self.images_path)
+        images = self._create_images_dict(image_ids)
         print('Images dict created')
 
         # Ensure we have a tokenizer with a dictionary
@@ -131,25 +141,28 @@ class VQADataset:
     def batch_generator(self, batch_size):
         """Yields a batch of data of size batch_size"""
 
+        # Load all the images in memory
+        print('Loading visual features...')
+        features = scipy.io.loadmat(self.features_path)['features']
+        for sample in self.samples:
+            sample.image.load(features, True)
+        print('Visual features loaded')
+
         num_samples = len(self.samples)
         batch_start = 0
         batch_end = batch_size
 
         while True:
             # Initialize matrix
-            I = np.zeros((batch_size, 3, 224, 224), dtype=np.float16)
+            I = np.zeros((batch_size, 1024), dtype=np.float16)
             Q = np.zeros((batch_size, self.question_max_len), dtype=np.int32)
-            A = np.zeros((batch_size, self.vocab_size), dtype=np.int8)
+            A = np.zeros((batch_size, self.vocab_size), dtype=np.bool_)
             # Assign each sample in the batch
             for idx, sample in enumerate(self.samples[batch_start:batch_end]):
-                try:
-                    Q[idx], I[idx] = sample.get_input(self.question_max_len, mem=True)
-                    A[idx] = sample.get_output()
-                except (IndexError, Exception):
-                    # TODO: improve exception handling
-                    continue
+                I[idx], Q[idx] = sample.get_input(self.question_max_len)
+                A[idx] = sample.get_output()
 
-            yield ([Q, I], A)
+            yield ([I, Q], A)
 
             # Update interval
             batch_start += batch_size
@@ -162,31 +175,30 @@ class VQADataset:
             if batch_end > num_samples:
                 batch_end = num_samples
 
-    def get_dataset_input_array(self):
+    def get_dataset_input(self):
+        features = scipy.io.loadmat(self.features_path)['features']
         # Load all the images in memory
-        map(lambda sample: sample.image.transform(True), self.samples)
+        for sample in self.samples:
+            sample.image.load(features, True)
         images_list = []
         questions_list = []
+
         for sample in self.samples:
-            questions_list.append(sample.get_input()[0])
-            images_list.append(sample.get_input()[1])
+            questions_list.append(sample.get_input(self.question_max_len)[0])
+            images_list.append(sample.get_input(self.question_max_len)[1])
 
-        input_array = [np.array(questions_list), np.array(images_list)]
+        return np.array(images_list), np.array(questions_list)
 
-        return input_array
+    def get_dataset_output(self):
+        output_array = [sample.get_output() for sample in self.samples]
 
-    def get_dataset_output_array(self):
-        output_array = []
-        for sample in self.samples:
-            output_array.append(sample.get_output())
+        print('output_array list created')
 
-        output_array = np.array(output_array)
-
-        return output_array
+        return np.array(output_array).astype(np.bool_)
 
     def size(self):
         """Returns the size (number of examples) of the dataset"""
-        
+
         return len(self.samples)
 
     def _create_questions_dict(self, questions_json_path):
@@ -201,8 +213,8 @@ class VQADataset:
 
         questions_json = json.load(open(questions_json_path))
         questions = {question['question_id']:
-                     Question(question['question_id'], question['question'].encode('utf8'), question['image_id'],
-                              self.vocab_size)
+                         Question(question['question_id'], question['question'].encode('utf8'), question['image_id'],
+                                  self.vocab_size)
                      for question in questions_json['questions']}
         return questions
 
@@ -228,30 +240,13 @@ class VQADataset:
         # we've composed the answer id the same way. The substraction of 1 is due to the fact that the
         # answer['answer_id'] ranges from 1 to 10 instead of 0 to 9
         answers = {(annotation['question_id'] * 10 + (answer['answer_id'] - 1)):
-                   Answer(answer['answer_id'], answer['answer'].encode('utf8'), annotation['question_id'],
-                          annotation['image_id'], self.vocab_size)
+                       Answer(answer['answer_id'], answer['answer'].encode('utf8'), annotation['question_id'],
+                              annotation['image_id'], self.vocab_size)
                    for annotation in answers_json['annotations'] for answer in annotation['answers']}
         return answers
 
-    def _create_images_dict(self, images_path, image_ids):
-        """Creates a dictionary of Image objects.
-
-        Args:
-            images_path (str): path to the directory containing the images
-            image_ids (list): ids of all the images in the dataset
-
-        Returns:
-            A dictionary of Image instances with their id as key
-        """
-        if self.dataset_type == DatasetType.TRAIN:
-            domain = 'COCO_train2014_'
-        elif self.dataset_type == DatasetType.VALIDATION:
-            domain = 'COCO_val2014_'
-        else:
-            domain = 'COCO_test2015_'
-
-        images = {image_id: Image(image_id, images_path + domain + str(image_id).zfill(12) + '.jpg')
-                  for image_id in image_ids}
+    def _create_images_dict(self, image_ids):
+        images = {image_id: Image(image_id, features_idx) for image_id, features_idx in image_ids.iteritems()}
 
         return images
 
@@ -290,23 +285,26 @@ class VQADataset:
             # Save tokenizer object
             pickle.dump(self.tokenizer, open(self.tokenizer_path, 'w'))
 
-    def _get_image_ids(self, questions):
-        """Retrieve all the unique image ids.
+    def _get_image_ids(self, images_path):
+        if self.dataset_type == DatasetType.TRAIN:
+            id_start = len('COCO_train2014_')
+            image_ids_path = images_path + 'train_list.txt'
+        elif self.dataset_type == DatasetType.VALIDATION:
+            id_start = len('COCO_val2014_')
+            image_ids_path = images_path + 'val_list.txt'
+        else:
+            id_start = len('COCO_test2015_')
+            image_ids_path = images_path + 'test_list.txt'
+        id_end = id_start + 12      # The string id in the image name has 12 characters
 
-        Args:
-            questions (dict): dictionary with all the Question instances
+        with open(image_ids_path, 'r') as f:
+            tmp = f.read()
+            image_ids = tmp.split('\n')
+            image_ids.remove('')  # Remove the empty item (the last one) as tmp ends with '\n'
+            image_ids = map(lambda x: int(x[id_start:id_end]), image_ids)
 
-        Returns:
-            A list with all the image ids
-        """
+        image_ids_dict = {}
+        for idx, image_id in enumerate(image_ids):
+            image_ids_dict[image_id] = idx
 
-        image_ids = []
-        for _, question in questions.iteritems():
-            # As we are working with set, only unique elements will be saved
-            image_ids.append(question.image_id)
-
-        # Make unique and back to lists as they perform better in iterations
-        image_ids = set(image_ids)
-        image_ids = list(image_ids)
-
-        return image_ids
+        return image_ids_dict
