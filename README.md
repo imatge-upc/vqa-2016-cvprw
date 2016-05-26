@@ -1,5 +1,10 @@
-# vqa-2016
-Visual question answering for egocentric images.
+# Visual Question Answering
+
+This is the project page of the UPC-UB team participating in the [VQA challenge](http://www.visualqa.org/challenge.html) for CVPR 2016. Details of the proposed solutions will be posted after the deadline.
+
+Main contributor: Issey Masuda
+Advisors: Santi Pascual, Marc Bolaños and Xavier Giro-i-Nieto
+Institutions: [Universitat Politecnica de Catalunya](http://www.upc.edu) and [Universitat de Barcelona](http://www.ub.edu).
 
 
 ## Related work
