@@ -7,6 +7,6 @@ with h5py.File('../results/train_losses.h5') as f:
 
 # Save plot
 plt.ioff()
-plt.plot(losses)
+plt.plot(losses[::19403])
 # plt.ylim([0, 14])
 plt.savefig('../results/train_losses.png')

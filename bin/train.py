@@ -122,17 +122,8 @@ save_weights_callback = ModelCheckpoint(MODEL_WEIGHTS_PATH, monitor='loss')
 stop_callback = EarlyStopping(monitor='loss', patience=5, mode='min')
 
 # ------------------------------- TRAIN MODEL -------------------------------
-# print('Creating training matrix...')
-# images, questions = dataset.get_dataset_input()
-# print('Input matrix created')
-# answers = dataset.get_dataset_output()
-# print('Training matrix created')
-#
 print('Start training...')
 vqa_model.fit_generator(dataset.batch_generator(BATCH_SIZE), samples_per_epoch=dataset.size(), nb_epoch=NUM_EPOCHS,
                         callbacks=[save_weights_callback, loss_callback, stop_callback])
 print('Trained')
 
-# gen = dataset.batch_generator(BATCH_SIZE)
-# a = gen.next()
-# print(a)
