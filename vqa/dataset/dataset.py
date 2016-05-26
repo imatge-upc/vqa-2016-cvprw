@@ -184,8 +184,8 @@ class VQADataset:
         questions_list = []
 
         for sample in self.samples:
-            questions_list.append(sample.get_input(self.question_max_len)[0])
-            images_list.append(sample.get_input(self.question_max_len)[1])
+            images_list.append(sample.get_input(self.question_max_len)[0])
+            questions_list.append(sample.get_input(self.question_max_len)[1])
 
         return np.array(images_list), np.array(questions_list)
 
