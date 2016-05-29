@@ -194,9 +194,14 @@ class CustomModelCheckpoint(ModelCheckpoint):
                                                     save_best_only=save_best_only, mode=mode)
         self.model_num = model_num
         self.weights_dir_path = weights_dir_path
+        self.last_epoch = 0
+
+    def on_epoch_end(self, epoch, logs={}):
+        super(CustomModelCheckpoint, self).on_epoch_end(epoch, logs)
+        self.last_epoch = epoch
 
     def on_train_end(self, logs={}):
-        os.symlink(self.weights_dir_path + 'model_weights_{}.{}.hdf5'.format(self.model_num, NUM_EPOCHS - 1),
+        os.symlink(self.weights_dir_path + 'model_weights_{}.{}.hdf5'.format(self.model_num, self.last_epoch),
                    self.weights_dir_path + 'model_weights_{}'.format(self.model_num))
 
 
