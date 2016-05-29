@@ -66,7 +66,7 @@ class VQADataset:
         # Features path
         if self.dataset_type == DatasetType.TRAIN:
             self.features_path = images_path + 'train_ImageNet_FisherVectors.mat'
-        elif self.dataset_type == DatasetType.VALIDATION:
+        elif (self.dataset_type == DatasetType.VALIDATION) or (self.dataset_type == DatasetType.EVAL):
             self.features_path = images_path + 'val_ImageNet_FisherVectors.mat'
         else:
             self.features_path = images_path + 'test_ImageNet_FisherVectors.mat'
@@ -75,7 +75,7 @@ class VQADataset:
         self.answers_path = answers_path
         if answers_path and (not os.path.isfile(answers_path)):
             raise ValueError('The directory ' + images_path + ' does not exists')
-        elif (not answers_path) and dataset_type != DatasetType.TEST:
+        elif (not answers_path) and (dataset_type != DatasetType.TEST and dataset_type != DatasetType.EVAL):
             raise ValueError('You have to provide an answers path')
 
         # Vocabulary size
@@ -140,6 +140,8 @@ class VQADataset:
 
     def batch_generator(self, batch_size):
         """Yields a batch of data of size batch_size"""
+
+        # TODO: this only works for TRAIN and VAL, extend to TEST and EVAL
 
         # Load all the images in memory
         print('Loading visual features...')
@@ -229,7 +231,7 @@ class VQADataset:
         """
 
         # There are no answers in the test dataset
-        if self.dataset_type == DatasetType.TEST:
+        if self.dataset_type == DatasetType.TEST or self.dataset_type == DatasetType.EVAL:
             return {}
 
         answers_json = json.load(open(answers_json_path))
@@ -256,13 +258,8 @@ class VQADataset:
         If dataset_type is DatasetType.TEST, answers will be ignored.
         """
 
-        # Compacted expression using list comprehension
-        # samples = [VQASample(questions[q_id], Image(questions[q_id].image_id, 'COCO_train2015_' +
-        # str(questions[q_id].image_id).zfill(12) + '.jpg'), answer) for q_id, answer in answers]
-
-        # Unfold expression, preferred for readability
         # Check for DatasetType
-        if not self.dataset_type == DatasetType.TEST:
+        if self.dataset_type != DatasetType.TEST and self.dataset_type != DatasetType.EVAL:
             for answer_id, answer in answers.iteritems():
                 question = questions[answer.question_id]
                 image_id = question.image_id
@@ -289,7 +286,7 @@ class VQADataset:
         if self.dataset_type == DatasetType.TRAIN:
             id_start = len('COCO_train2014_')
             image_ids_path = images_path + 'train_list.txt'
-        elif self.dataset_type == DatasetType.VALIDATION:
+        elif self.dataset_type == DatasetType.VALIDATION or self.dataset_type == DatasetType.EVAL:
             id_start = len('COCO_val2014_')
             image_ids_path = images_path + 'val_list.txt'
         else:
