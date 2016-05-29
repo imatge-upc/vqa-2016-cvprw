@@ -1,22 +1,14 @@
 import cPickle as pickle
-import json
 import sys
 import timeit
 
-import h5py
 import os
-import shutil
-from keras.callbacks import Callback, ModelCheckpoint, EarlyStopping
-from keras.layers.convolutional import Convolution2D, MaxPooling2D, ZeroPadding2D
-from keras.layers.core import Dropout, RepeatVector, Merge, Dense, Flatten
-from keras.layers.embeddings import Embedding
-from keras.layers.recurrent import LSTM
-from keras.models import Sequential, model_from_json
+from keras.layers import Input, Embedding, merge, LSTM, Dropout, Dense, RepeatVector
+from keras.models import Model, model_from_json
 
 sys.path.append('..')
 
 from vqa.dataset.dataset import VQADataset, DatasetType
-from vqa.model.model import VQAModel
 
 # ------------------------------ CONSTANTS ------------------------------
 # Paths
@@ -26,7 +18,7 @@ DATASET_PREPROCESSED_PATH = PREPROC_DATA_PATH + 'validate_dataset.p'
 MODELS_DIR_PATH = '../models/'
 MODEL_PATH = MODELS_DIR_PATH + 'model.json'
 WEIGHTS_DIR_PATH = MODELS_DIR_PATH + 'weights/'
-MODEL_WEIGHTS_PATH = WEIGHTS_DIR_PATH + 'model_weights'
+MODEL_WEIGHTS_PATH = WEIGHTS_DIR_PATH + 'model_weights.04.hdf5'
 VGG_WEIGHTS_PATH = WEIGHTS_DIR_PATH + 'vgg16_weights.h5'
 TRUNCATED_VGG_WEIGHTS_PATH = WEIGHTS_DIR_PATH + 'truncated_vgg16_weights.h5'
 # Constants
@@ -41,7 +33,8 @@ if not os.path.isfile(DATASET_PREPROCESSED_PATH):
     print('Creating dataset...')
     start_time = timeit.default_timer()
     dataset = VQADataset(DatasetType.VALIDATION, '../data/val/questions', '../data/val/annotations',
-                         '../data/val/images/', '../data/preprocessed/tokenizer.p', vocab_size=VOCABULARY_SIZE)
+                         '../data/preprocessed/dataset/', '../data/preprocessed/tokenizer.p',
+                         vocab_size=VOCABULARY_SIZE)
     print('Preparing dataset...')
     dataset.prepare()
     elapsed_time = timeit.default_timer() - start_time
@@ -60,138 +53,51 @@ else:
     print('Dataset loaded. Execution time: %f' % elapsed_time)
 
 # ------------------------------- CREATE MODEL ----------------------------------
-if not os.path.isfile(MODEL_PATH):
+
+try:
+    with open(MODEL_PATH, 'r') as f:
+        print('Loading model...')
+        vqa_model = model_from_json(f.read())
+        print('Model loaded')
+        print('Compiling model...')
+        vqa_model.compile(optimizer='adam', loss='categorical_crossentropy')
+        print('Model compiled')
+except IOError:
     print('Creating model...')
-    start_time = timeit.default_timer()
-    # Question
-    query_model = Sequential()
-    query_model.add(
-        Embedding(VOCABULARY_SIZE, EMBED_HIDDEN_SIZE, input_length=QUESTION_MAX_LEN, mask_zero=True))
-    query_model.add(Dropout(0.5))
-
     # Image
-    # Set to all layers trainable=False to freeze VGG-16 weights'
-    im_model = Sequential()
-    im_model.add(ZeroPadding2D((1, 1), input_shape=(3, 224, 224), trainable=False))
-    im_model.add(Convolution2D(64, 3, 3, activation='relu', trainable=False))
-    im_model.add(ZeroPadding2D((1, 1), trainable=False))
-    im_model.add(Convolution2D(64, 3, 3, activation='relu', trainable=False))
-    im_model.add(MaxPooling2D((2, 2), strides=(2, 2), trainable=False))
+    image_input = Input(shape=(1024,))
+    image_repeat = RepeatVector(n=QUESTION_MAX_LEN)(image_input)
 
-    im_model.add(ZeroPadding2D((1, 1), trainable=False))
-    im_model.add(Convolution2D(128, 3, 3, activation='relu', trainable=False))
-    im_model.add(ZeroPadding2D((1, 1), trainable=False))
-    im_model.add(Convolution2D(128, 3, 3, activation='relu', trainable=False))
-    im_model.add(MaxPooling2D((2, 2), strides=(2, 2), trainable=False))
+    # Question
+    question_input = Input(shape=(QUESTION_MAX_LEN,), dtype='int32')
+    question_embedded = Embedding(input_dim=VOCABULARY_SIZE, output_dim=EMBED_HIDDEN_SIZE,
+                                  input_length=QUESTION_MAX_LEN)(question_input)  # Can't use masking
+    question_embedded = Dropout(0.5)(question_embedded)
 
-    im_model.add(ZeroPadding2D((1, 1), trainable=False))
-    im_model.add(Convolution2D(256, 3, 3, activation='relu', trainable=False))
-    im_model.add(ZeroPadding2D((1, 1), trainable=False))
-    im_model.add(Convolution2D(256, 3, 3, activation='relu', trainable=False))
-    im_model.add(ZeroPadding2D((1, 1), trainable=False))
-    im_model.add(Convolution2D(256, 3, 3, activation='relu', trainable=False))
-    im_model.add(MaxPooling2D((2, 2), strides=(2, 2), trainable=False))
+    # Merge
+    merged = merge([image_repeat, question_embedded], mode='concat')  # Merge for layers merge for tensors
+    x = LSTM(EMBED_HIDDEN_SIZE, return_sequences=False)(merged)
+    x = Dropout(0.5)(x)
+    output = Dense(output_dim=VOCABULARY_SIZE, activation='softmax')(x)
 
-    im_model.add(ZeroPadding2D((1, 1), trainable=False))
-    im_model.add(Convolution2D(512, 3, 3, activation='relu', trainable=False))
-    im_model.add(ZeroPadding2D((1, 1), trainable=False))
-    im_model.add(Convolution2D(512, 3, 3, activation='relu', trainable=False))
-    im_model.add(ZeroPadding2D((1, 1), trainable=False))
-    im_model.add(Convolution2D(512, 3, 3, activation='relu', trainable=False))
-    im_model.add(MaxPooling2D((2, 2), strides=(2, 2), trainable=False))
-
-    im_model.add(ZeroPadding2D((1, 1), trainable=False))
-    im_model.add(Convolution2D(512, 3, 3, activation='relu', trainable=False))
-    im_model.add(ZeroPadding2D((1, 1), trainable=False))
-    im_model.add(Convolution2D(512, 3, 3, activation='relu', trainable=False))
-    im_model.add(ZeroPadding2D((1, 1), trainable=False))
-    im_model.add(Convolution2D(512, 3, 3, activation='relu', trainable=False))
-    im_model.add(MaxPooling2D((2, 2), strides=(2, 2), trainable=False))
-
-    im_model.add(Flatten(trainable=False))
-
-    # Load VGG-16 weights
-    if not os.path.isfile(VGG_WEIGHTS_PATH):
-        print('You need to download the VGG-16 weights: '
-              'https://drive.google.com/file/d/0Bz7KyqmuGsilT0J5dmRCM0ROVHc/view?pref=2&pli=1')
-        quit()
-
-    if not os.path.isfile(TRUNCATED_VGG_WEIGHTS_PATH):
-        print('Preparing VGG-16 weights...')
-        shutil.copy(VGG_WEIGHTS_PATH, TRUNCATED_VGG_WEIGHTS_PATH)
-        trunc_vgg_weights = h5py.File(TRUNCATED_VGG_WEIGHTS_PATH)
-        # Remove last 5 layers' weights
-        for i in range(32, 36):
-            del trunc_vgg_weights['layer_{}'.format(i)]
-        trunc_vgg_weights.attrs.modify('nb_layers', 32)
-        trunc_vgg_weights.flush()
-        trunc_vgg_weights.close()
-        print('VGG weights ready to use')
-
-    im_model.load_weights(TRUNCATED_VGG_WEIGHTS_PATH)
-
-    im_model.add(RepeatVector(QUESTION_MAX_LEN))
-
-    # Merging
-    model = Sequential()
-    model.add(Merge([query_model, im_model], mode='concat'))
-    model.add(LSTM(EMBED_HIDDEN_SIZE, return_sequences=False))
-    model.add(Dropout(0.5))
-    model.add(Dense(VOCABULARY_SIZE, activation='softmax'))
-
-    elapsed_time = timeit.default_timer() - start_time
-    print('Model created. Execution time: %f' % elapsed_time)
+    vqa_model = Model(input=[image_input, question_input], output=output)
+    print('Model created')
 
     print('Compiling model...')
-    start_time = timeit.default_timer()
-    model.compile(optimizer='adam', loss='categorical_crossentropy', class_mode='categorical')
-    elapsed_time = timeit.default_timer() - start_time
-    print('Model compiled. Execution time: %f' % elapsed_time)
-
-    if not os.path.isdir(MODELS_DIR_PATH):
-        os.mkdir(MODELS_DIR_PATH)
+    vqa_model.compile(optimizer='adam', loss='categorical_crossentropy')
+    print('Model compiled')
 
     print('Saving model...')
-    start_time = timeit.default_timer()
-    model_json = model.to_json()
-    open(MODEL_PATH, 'w').write(model_json)
-    elapsed_time = timeit.default_timer() - start_time
-    print('Model saved. Execution time: %f' % elapsed_time)
-else:
-    print('Loading model...')
-    start_time = timeit.default_timer()
-    model = model_from_json(open(MODEL_PATH, 'r').read())
-    elapsed_time = timeit.default_timer() - start_time
-    print('Model loaded. Execution time: %f' % elapsed_time)
-
-
-# ------------------------------- CALLBACKS ----------------------------------
-class LossHistoryCallback(Callback):
-    def on_train_begin(self, logs={}):
-        self.losses = []
-
-    def on_batch_end(self, batch, logs={}):
-        self.losses.append(logs.get('loss'))
-
-    def on_epoch_end(self, epoch, logs={}):
-        with open(MODELS_DIR_PATH + 'validate_losses.json', 'w') as f:
-            json.dump(self.losses, f)
-
-
-loss_callback = LossHistoryCallback()
+    model_json = vqa_model.to_json()
+    with open(MODEL_PATH, 'w') as f:
+        f.write(model_json)
+    print('Model saved')
 
 # ------------------------------- VALIDATE MODEL ----------------------------------
 print('Loading weights...')
-model.load_weights(MODEL_WEIGHTS_PATH)
+vqa_model.load_weights(MODEL_WEIGHTS_PATH)
 print('Weights loaded')
-# print('Getting dataset array...')
-# dataset.get_dataset_array()
-# print('Dataset array done')
-# print('Evaluating...')
-# history = model.evaluate_generator(dataset.batch_generator(BATCH_SIZE), dataset.size())
-# print('Evaluation completed')
-#
-# print('Saving history...')
-# with open(MODELS_DIR_PATH + 'validate_history.json') as f:
-#     json.dump(history, f)
-# print('History saved')
+print('Start validation...')
+result = vqa_model.evaluate_generator(dataset.batch_generator(BATCH_SIZE), val_samples=dataset.size())
+print('Validated')
+print(result)

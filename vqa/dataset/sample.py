@@ -53,13 +53,12 @@ class VQASample:
         else:
             raise TypeError('dataset_type has to be one of the DatasetType defined values')
 
-    def get_input(self, question_max_len, mem=False):
+    def get_input(self, question_max_len, mem=True):
         """Gets the prepared input to be injected into the NN.
 
         Args:
             question_max_len (int): The maximum length of the question. The question will be truncated if it's larger
                 or padded with zeros if it's shorter
-            mem (bool): Either to keep the image in memory (the Image object will hold the actual image data) or not
 
         Returns:
             A list with two items, each of one a NumPy array. The first element contains the question and the second
@@ -71,17 +70,9 @@ class VQASample:
         question = pad_sequences([question], question_max_len)[0]
 
         # Prepare image
-        try:
-            image = self.image.transform(mem=mem)
-        except IndexError as error:
-            # TODO: change error loging method
-            print('IndexError in image: ' + self.image.image_path)
-            # f = open('log_index_error', 'a')
-            # f.write(self.image.image_path + '\n')
-            # f.close()
-            raise IndexError(error)
+        image = self.image.features
 
-        return question, image
+        return image, question
 
     def get_output(self):
         if self.sample_type == DatasetType.TEST:
@@ -96,7 +87,7 @@ class VQASample:
             # One-hot vector
             one_hot_ans[idx] = 1
 
-        return one_hot_ans
+        return one_hot_ans.astype(np.bool_)
 
 
 class Question:
@@ -268,56 +259,19 @@ class Answer:
 
 
 class Image:
-    """Class that holds the information of a single image of a VQA sample, including the matrix representation"""
 
-    def __init__(self, image_id, image_path):
+    def __init__(self, image_id, features_idx):
         self.image_id = image_id
-        if os.path.isfile(image_path):
-            self.image_path = image_path
+        self.features_idx = features_idx
+        self.features = np.array([])
+
+    def load(self, images_features, mem=True):
+
+        if len(self.features):
+            return self.features
         else:
-            raise ValueError('The image ' + image_path + ' does not exists')
-        self._image = np.array([])
-        self._transformed_image = np.array([])
-
-    def load(self, mem=True):
-        """Loads the image from disk and stores it as a NumPy array of data_type values.
-
-        If mem is False, the image array will not be hold as an attribute and the method will only return the image
-        """
-
-        if len(self._image):
-            return self._image
-        else:
-            image = imread(self.image_path)
-            image = image.astype(np.float16)
+            features = images_features[self.features_idx]
             if mem:
-                self._image = image
-            return image
+                self.features = features
+            return features
 
-    def transform(self, mem=True):
-        """Applies a transformation to the image so that it has the expected format.
-
-        If mem is False, the transformed image array will not be hold as an attribute and the method will only
-        return the transformed image.
-
-        This method expects the image to be RGB, otherwise it throws an Error
-        """
-
-        if len(self._transformed_image):
-            return self._transformed_image
-        else:
-            try:
-                image = self.load(False)
-                image = imresize(image, (224, 224, 3)).astype(np.float16)
-                # Remove mean
-                image[:, :, 2] -= 103.939
-                image[:, :, 1] -= 116.779
-                image[:, :, 0] -= 123.68
-                image = image.transpose((2, 0, 1))  # Change axes order so the channel is the first dimension
-
-                if mem:
-                    self._transformed_image = image
-            except IndexError as error:
-                image = np.zeros((3, 224, 224), dtype=np.float16)
-
-            return image
