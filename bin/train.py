@@ -6,7 +6,7 @@ import h5py
 import numpy as np
 import os
 from keras.callbacks import Callback, ModelCheckpoint, EarlyStopping
-from keras.layers import Input, Embedding, merge, LSTM, Dropout, Dense, RepeatVector
+from keras.layers import Input, Embedding, merge, LSTM, Dropout, Dense, RepeatVector, BatchNormalization
 from keras.models import Model, model_from_json
 
 sys.path.append('..')
@@ -16,13 +16,14 @@ from vqa.dataset.types import DatasetType
 
 # ------------------------------ CONSTANTS ------------------------------
 # Paths
+MODEL_NUM = '3'
 DATA_PATH = '../data/'
 PREPROC_DATA_PATH = DATA_PATH + 'preprocessed/'
 DATASET_PREPROCESSED_PATH = PREPROC_DATA_PATH + 'train_dataset.p'
 MODELS_DIR_PATH = '../models/'
-MODEL_PATH = MODELS_DIR_PATH + 'model.json'
+MODEL_PATH = MODELS_DIR_PATH + 'model_' + MODEL_NUM + '.json'
 WEIGHTS_DIR_PATH = MODELS_DIR_PATH + 'weights/'
-MODEL_WEIGHTS_PATH = WEIGHTS_DIR_PATH + 'model_weights.{epoch:02d}.hdf5'
+MODEL_WEIGHTS_PATH = WEIGHTS_DIR_PATH + 'model_weights_' + MODEL_NUM + '.{epoch:02d}.hdf5'
 VGG_WEIGHTS_PATH = WEIGHTS_DIR_PATH + 'vgg16_weights.h5'
 TRUNCATED_VGG_WEIGHTS_PATH = WEIGHTS_DIR_PATH + 'truncated_vgg16_weights.h5'
 # Constants
@@ -79,7 +80,8 @@ except IOError:
 
     # Merge
     merged = merge([image_repeat, question_embedded], mode='concat')  # Merge for layers merge for tensors
-    x = LSTM(EMBED_HIDDEN_SIZE, return_sequences=False)(merged)
+    x = BatchNormalization()(merged)
+    x = LSTM(EMBED_HIDDEN_SIZE, return_sequences=False)(x)
     x = Dropout(0.5)(x)
     output = Dense(output_dim=VOCABULARY_SIZE, activation='softmax')(x)
 
