@@ -35,7 +35,7 @@ class VQASample:
             raise TypeError('question has to be an instance of class Question')
 
         # Answer
-        if dataset_type != DatasetType.TEST:
+        if dataset_type != DatasetType.TEST and dataset_type != DatasetType.EVAL:
             if isinstance(answer, Answer):
                 self.answer = answer
             else:
@@ -75,8 +75,9 @@ class VQASample:
         return image, question
 
     def get_output(self):
-        if self.sample_type == DatasetType.TEST:
-            raise TypeError('This sample is of type DatasetType.TEST and thus does not have an associated output')
+        if self.sample_type == DatasetType.TEST or self.sample_type == DatasetType.EVAL:
+            raise TypeError('This sample is of type DatasetType.TEST or DatasetType.EVAL and thus does not have an '
+                            'associated output')
 
         answer = self.answer.get_tokens()
         one_hot_ans = np.zeros(self.answer.vocab_size)

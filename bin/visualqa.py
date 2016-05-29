@@ -17,7 +17,7 @@ from vqa.model.library import ModelLibrary
 
 # ------------------------------ GLOBALS ------------------------------
 # Constants
-ACTIONS = ['train', 'val', 'test']
+ACTIONS = ['train', 'val', 'test', 'eval']
 VOCABULARY_SIZE = 20000
 EMBED_HIDDEN_SIZE = 100
 NUM_EPOCHS = 40
@@ -48,6 +48,12 @@ CONFIG_TEST = {
     'dataset_type': DatasetType.TEST,
     'dataset_path': PREPROCESSED_PATH + 'test_dataset.p',
     'questions_path': DATA_PATH + 'test/questions',
+    'annotations_path': None
+}
+CONFIG_EVAL = {
+    'dataset_type': DatasetType.EVAL,
+    'dataset_path': PREPROCESSED_PATH + 'eval_dataset.p',
+    'questions_path': DATA_PATH + 'val/questions',
     'annotations_path': None
 }
 
@@ -90,6 +96,13 @@ def main(action, model_num):
                                TOKENIZER_PATH)
         weights_path = WEIGHTS_DIR_PATH + 'model_weights_{}'.format(model_num)
         results_path = RESULTS_DIR_PATH + 'test2015_results_{}.json'.format(model_num)
+        test(vqa_model, dataset, weights_path, results_path)
+    elif action == 'eval':
+        dataset = load_dataset(CONFIG_EVAL['dataset_type'], CONFIG_EVAL['dataset_path'],
+                               CONFIG_EVAL['questions_path'], CONFIG_EVAL['annotations_path'], FEATURES_DIR_PATH,
+                               TOKENIZER_PATH)
+        weights_path = WEIGHTS_DIR_PATH + 'model_weights_{}'.format(model_num)
+        results_path = RESULTS_DIR_PATH + 'val2014_results_{}.json'.format(model_num)
         test(vqa_model, dataset, weights_path, results_path)
     else:
         raise ValueError('The action you provided do not exist')
@@ -194,9 +207,14 @@ class CustomModelCheckpoint(ModelCheckpoint):
                                                     save_best_only=save_best_only, mode=mode)
         self.model_num = model_num
         self.weights_dir_path = weights_dir_path
+        self.last_epoch = 0
+
+    def on_epoch_end(self, epoch, logs={}):
+        super(CustomModelCheckpoint, self).on_epoch_end(epoch, logs)
+        self.last_epoch = epoch
 
     def on_train_end(self, logs={}):
-        os.symlink(self.weights_dir_path + 'model_weights_{}.{}.hdf5'.format(self.model_num, NUM_EPOCHS - 1),
+        os.symlink(self.weights_dir_path + 'model_weights_{}.{}.hdf5'.format(self.model_num, self.last_epoch),
                    self.weights_dir_path + 'model_weights_{}'.format(self.model_num))
 
 
