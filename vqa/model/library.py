@@ -111,3 +111,7 @@ class ModelLibrary:
 
         return vqa_model
 
+    @classmethod
+    def is_valid_model_num(cls, model_num):
+        valid_model_nums = [cls.__dict__[key] for key in cls.__dict__.keys() if key.startswith('MODEL_')]
+        return model_num in valid_model_nums
