@@ -3,6 +3,7 @@ import sys
 
 import h5py
 import matplotlib.pyplot as plt
+import numpy as np
 
 sys.path.append('..')
 
@@ -17,22 +18,27 @@ PLOT_TYPES = ['epochs', 'batches']
 # ------------------------------- SCRIPT FUNCTIONALITY -------------------------------
 
 def main(model_num, plot_type):
-    with h5py.File('../results/train_losses_{}.h5'.format(model_num)) as f:
-        losses = f['/train_losses'].value
+    with h5py.File('../results/learning_curves_{}.h5'.format(model_num)) as f:
+        train_losses = f['/train_losses'].value
+        val_losses = f['/val_losses'].value
 
     # Save plot
     plt.ioff()
     if plot_type == 'epochs':
-        plt.plot(losses[::19403])
+        plt.plot(range(len(val_losses) + 1), np.append(train_losses[::19403], train_losses[-1]),
+                 range(1, len(val_losses) + 1, 1), val_losses)
         plt.xlabel('Epoch number')
     elif plot_type == 'batches':
-        plt.plot(losses)
+        plt.plot(train_losses)
         plt.xlabel('Batch number')
     else:
         raise ValueError('Plot type {} does not exist'.format(plot_type))
     plt.ylabel('Loss')
-    plt.title('Loss curve for the training set')
-    plt.savefig('../results/train_losses_{}_{}.png'.format(plot_type, model_num))
+    plt.title('Learning curves')
+    max_train_loss = np.amax(train_losses)
+    max_val_loss = np.amax(val_losses)
+    plt.ylim([0, max(max_train_loss, max_val_loss) + 1])
+    plt.savefig('../results/loss_curves_{}_{}.png'.format(plot_type, model_num))
 
 
 # ------------------------------- ENTRY POINT -------------------------------

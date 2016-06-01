@@ -81,9 +81,12 @@ def main(action, model_num):
     # Load dataset depending on the action to perform
     if action == 'train':
         dataset = train_dataset
+        val_dataset = load_dataset(CONFIG_VAL['dataset_type'], CONFIG_VAL['dataset_path'],
+                                   CONFIG_VAL['questions_path'], CONFIG_VAL['annotations_path'], FEATURES_DIR_PATH,
+                                   TOKENIZER_PATH)
         weights_path = WEIGHTS_DIR_PATH + 'model_weights_' + str(model_num) + '.{epoch:02d}.hdf5'
-        losses_path = RESULTS_DIR_PATH + 'train_losses_{}.h5'.format(model_num)
-        train(vqa_model, dataset, model_num, weights_path, losses_path)
+        learning_curves_path = RESULTS_DIR_PATH + 'learning_curves_{}.h5'.format(model_num)
+        train(vqa_model, dataset, model_num, weights_path, learning_curves_path, val_dataset)
     elif action == 'val':
         dataset = load_dataset(CONFIG_VAL['dataset_type'], CONFIG_VAL['dataset_path'],
                                CONFIG_VAL['questions_path'], CONFIG_VAL['annotations_path'], FEATURES_DIR_PATH,
@@ -131,14 +134,16 @@ def load_dataset(dataset_type, dataset_path, questions_path, annotations_path, f
     return dataset
 
 
-def train(model, dataset, model_num, model_weights_path, losses_path):
-    loss_callback = LossHistoryCallback(losses_path)
-    save_weights_callback = CustomModelCheckpoint(model_weights_path, WEIGHTS_DIR_PATH, model_num, monitor='loss')
-    stop_callback = EarlyStopping(monitor='loss', patience=5, mode='min')
+def train(model, dataset, model_num, model_weights_path, learning_curves_path, val_dataset):
+    loss_callback = LossHistoryCallback(learning_curves_path)
+    save_weights_callback = CustomModelCheckpoint(model_weights_path, WEIGHTS_DIR_PATH, model_num)
+    # TODO: add the early stopping again
+    # stop_callback = EarlyStopping(patience=5)
 
     print('Start training...')
     model.fit_generator(dataset.batch_generator(BATCH_SIZE), samples_per_epoch=dataset.size(), nb_epoch=NUM_EPOCHS,
-                        callbacks=[save_weights_callback, loss_callback, stop_callback])
+                        callbacks=[save_weights_callback, loss_callback],
+                        validation_data=val_dataset.batch_generator(BATCH_SIZE), nb_val_samples=val_dataset.size())
     print('Trained')
 
 
@@ -182,22 +187,27 @@ def test(model, dataset, weights_path, results_path):
 # ------------------------------- CALLBACKS -------------------------------
 
 class LossHistoryCallback(Callback):
-    def __init__(self, losses_path):
+    def __init__(self, results_path):
         super(LossHistoryCallback, self).__init__()
-        self.losses = []
-        self.losses_path = losses_path
+        self.train_losses = []
+        self.val_losses = []
+        self.results_path = results_path
 
     def on_batch_end(self, batch, logs={}):
-        self.losses.append(logs.get('loss'))
+        self.train_losses.append(logs.get('loss'))
 
     def on_epoch_end(self, epoch, logs={}):
+        self.val_losses.append(logs.get('val_loss'))
         try:
-            with h5py.File(self.losses_path, 'a') as f:
+            with h5py.File(self.results_path, 'a') as f:
                 if 'train_losses' in f:
                     del f['train_losses']
-                f.create_dataset('train_losses', data=np.array(self.losses))
+                if 'val_losses' in f:
+                    del f['val_losses']
+                f.create_dataset('train_losses', data=np.array(self.train_losses))
+                f.create_dataset('val_losses', data=np.array(self.val_losses))
         except (TypeError, RuntimeError):
-            print('Couldnt save losses')
+            print('Couldn\'t save losses')
 
 
 class CustomModelCheckpoint(ModelCheckpoint):
@@ -214,8 +224,16 @@ class CustomModelCheckpoint(ModelCheckpoint):
         self.last_epoch = epoch
 
     def on_train_end(self, logs={}):
-        os.symlink(self.weights_dir_path + 'model_weights_{}.{}.hdf5'.format(self.model_num, self.last_epoch),
-                   self.weights_dir_path + 'model_weights_{}'.format(self.model_num))
+        try:
+            os.symlink(self.weights_dir_path + 'model_weights_{}.{}.hdf5'.format(self.model_num, self.last_epoch),
+                       self.weights_dir_path + 'model_weights_{}'.format(self.model_num))
+        except OSError:
+            # If the symlink already exist, delete and create again
+            os.remove(self.weights_dir_path + 'model_weights_{}'.format(self.model_num))
+            # Recreate
+            os.symlink(self.weights_dir_path + 'model_weights_{}.{}.hdf5'.format(self.model_num, self.last_epoch),
+                       self.weights_dir_path + 'model_weights_{}'.format(self.model_num))
+            pass
 
 
 # ------------------------------- ENTRY POINT -------------------------------
