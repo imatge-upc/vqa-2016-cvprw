@@ -85,8 +85,8 @@ def main(action, model_num):
                                    CONFIG_VAL['questions_path'], CONFIG_VAL['annotations_path'], FEATURES_DIR_PATH,
                                    TOKENIZER_PATH)
         weights_path = WEIGHTS_DIR_PATH + 'model_weights_' + str(model_num) + '.{epoch:02d}.hdf5'
-        learning_curves_path = RESULTS_DIR_PATH + 'learning_curves_{}.h5'.format(model_num)
-        train(vqa_model, dataset, model_num, weights_path, learning_curves_path, val_dataset)
+        losses_path = RESULTS_DIR_PATH + 'losses_{}.h5'.format(model_num)
+        train(vqa_model, dataset, model_num, weights_path, losses_path, val_dataset)
     elif action == 'val':
         dataset = load_dataset(CONFIG_VAL['dataset_type'], CONFIG_VAL['dataset_path'],
                                CONFIG_VAL['questions_path'], CONFIG_VAL['annotations_path'], FEATURES_DIR_PATH,
@@ -134,8 +134,8 @@ def load_dataset(dataset_type, dataset_path, questions_path, annotations_path, f
     return dataset
 
 
-def train(model, dataset, model_num, model_weights_path, learning_curves_path, val_dataset):
-    loss_callback = LossHistoryCallback(learning_curves_path)
+def train(model, dataset, model_num, model_weights_path, losses_path, val_dataset):
+    loss_callback = LossHistoryCallback(losses_path)
     save_weights_callback = CustomModelCheckpoint(model_weights_path, WEIGHTS_DIR_PATH, model_num)
     # TODO: add the early stopping again
     # stop_callback = EarlyStopping(patience=5)
