@@ -19,7 +19,6 @@ from vqa.model.library import ModelLibrary
 # Constants
 ACTIONS = ['train', 'val', 'test', 'eval']
 VOCABULARY_SIZE = 20000
-EMBED_HIDDEN_SIZE = 100
 NUM_EPOCHS = 40
 BATCH_SIZE = 128
 
@@ -75,8 +74,7 @@ def main(action, model_num):
     question_max_len = train_dataset.question_max_len
 
     # Load model
-    vqa_model = ModelLibrary.get_model(model_num, vocabulary_size=VOCABULARY_SIZE, embed_hidden_size=EMBED_HIDDEN_SIZE,
-                                       question_max_len=question_max_len)
+    vqa_model = ModelLibrary.get_model(model_num, vocabulary_size=VOCABULARY_SIZE, question_max_len=question_max_len)
 
     # Load dataset depending on the action to perform
     if action == 'train':
