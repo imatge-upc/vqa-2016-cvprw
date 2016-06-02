@@ -18,7 +18,7 @@ PLOT_TYPES = ['epochs', 'batches']
 # ------------------------------- SCRIPT FUNCTIONALITY -------------------------------
 
 def main(model_num, plot_type):
-    with h5py.File('../results/learning_curves_{}.h5'.format(model_num)) as f:
+    with h5py.File('../results/losses_{}.h5'.format(model_num)) as f:
         train_losses = f['/train_losses'].value
         val_losses = f['/val_losses'].value
 
@@ -34,7 +34,7 @@ def main(model_num, plot_type):
     else:
         raise ValueError('Plot type {} does not exist'.format(plot_type))
     plt.ylabel('Loss')
-    plt.title('Learning curves')
+    plt.title('Loss curves')
     max_train_loss = np.amax(train_losses)
     max_val_loss = np.amax(val_losses)
     plt.ylim([0, max(max_train_loss, max_val_loss) + 1])
