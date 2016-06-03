@@ -151,7 +151,7 @@ def validate(model, dataset, weights_path):
     print('Weights loaded')
     print('Start validation...')
     result = model.evaluate_generator(dataset.batch_generator(BATCH_SIZE), val_samples=dataset.size())
-    print('Validated')
+    print('Validated. Loss: {}'.format(result))
 
     return result
 

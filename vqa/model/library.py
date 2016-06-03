@@ -42,6 +42,8 @@ class ModelLibrary:
             return ModelLibrary.get_model_three(vocabulary_size, question_max_len)
         elif model_num == ModelLibrary.MODEL_FOUR:
             return ModelLibrary.get_model_four(vocabulary_size, question_max_len, answer_max_len)
+        elif model_num == ModelLibrary.MODEL_FIVE:
+            return ModelLibrary.get_model_five(vocabulary_size, question_max_len)
 
     @staticmethod
     def get_model_one(vocabulary_size=20000, question_max_len=22):
