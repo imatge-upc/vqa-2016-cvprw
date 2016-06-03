@@ -94,13 +94,15 @@ class ModelLibrary:
     def get_model_two(vocabulary_size=20000, question_max_len=22):
         model_num = ModelLibrary.MODEL_TWO
         model_path = ModelLibrary.MODELS_PATH + 'model_{}.json'.format(model_num)
+        # Optimizer
+        adam = Adam(lr=1e-4)
         try:
             with open(model_path, 'r') as f:
                 print('Loading model...')
                 vqa_model = model_from_json(f.read())
                 print('Model loaded')
                 print('Compiling model...')
-                vqa_model.compile(optimizer='adam', loss='categorical_crossentropy')
+                vqa_model.compile(optimizer=adam, loss='categorical_crossentropy')
                 print('Model compiled')
         except IOError:
             print('Creating model...')
@@ -125,7 +127,7 @@ class ModelLibrary:
             print('Model created')
 
             print('Compiling model...')
-            vqa_model.compile(optimizer='adam', loss='categorical_crossentropy')
+            vqa_model.compile(optimizer=adam, loss='categorical_crossentropy')
             print('Model compiled')
 
             print('Saving model...')
@@ -141,7 +143,7 @@ class ModelLibrary:
         model_num = ModelLibrary.MODEL_THREE
         model_path = ModelLibrary.MODELS_PATH + 'model_{}.json'.format(model_num)
         # Optimizer
-        adam = Adam(lr=0.0003)
+        adam = Adam(lr=1e-4)
         # Create/load model
         try:
             with open(model_path, 'r') as f:
@@ -243,7 +245,7 @@ class ModelLibrary:
         # Params
         lstm_hidden_units = 256
         # Optimizer
-        adam = Adam(lr=0.0001)
+        adam = Adam(lr=1e-4)
         # Create/load model
         try:
             with open(model_path, 'r') as f:

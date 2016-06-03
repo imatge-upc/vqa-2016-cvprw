@@ -135,12 +135,11 @@ def load_dataset(dataset_type, dataset_path, questions_path, annotations_path, f
 def train(model, dataset, model_num, model_weights_path, losses_path, val_dataset):
     loss_callback = LossHistoryCallback(losses_path)
     save_weights_callback = CustomModelCheckpoint(model_weights_path, WEIGHTS_DIR_PATH, model_num)
-    # TODO: add the early stopping again
-    # stop_callback = EarlyStopping(patience=5)
+    stop_callback = EarlyStopping(patience=5)
 
     print('Start training...')
     model.fit_generator(dataset.batch_generator(BATCH_SIZE), samples_per_epoch=dataset.size(), nb_epoch=NUM_EPOCHS,
-                        callbacks=[save_weights_callback, loss_callback],
+                        callbacks=[save_weights_callback, loss_callback, stop_callback],
                         validation_data=val_dataset.batch_generator(BATCH_SIZE), nb_val_samples=val_dataset.size())
     print('Trained')
 
