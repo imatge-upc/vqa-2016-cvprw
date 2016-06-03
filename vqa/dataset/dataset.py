@@ -5,7 +5,6 @@ import random
 import numpy as np
 import os
 import scipy.io
-
 from keras.preprocessing.text import Tokenizer
 
 from sample import Question, Answer, Image, VQASample
@@ -162,7 +161,7 @@ class VQADataset:
             # Assign each sample in the batch
             for idx, sample in enumerate(self.samples[batch_start:batch_end]):
                 I[idx], Q[idx] = sample.get_input(self.question_max_len)
-                A[idx] = sample.get_output()
+                A[idx] = sample.get_output(1)[0]        # Force to one-word answer
 
             yield ([I, Q], A)
 
@@ -192,7 +191,7 @@ class VQADataset:
         return np.array(images_list), np.array(questions_list)
 
     def get_dataset_output(self):
-        output_array = [sample.get_output() for sample in self.samples]
+        output_array = [sample.get_output(1) for sample in self.samples]
 
         print('output_array list created')
 
@@ -216,8 +215,7 @@ class VQADataset:
         questions_json = json.load(open(questions_json_path))
         questions = {question['question_id']:
                          Question(question['question_id'], question['question'].encode('utf8'), question['image_id'],
-                                  self.vocab_size)
-                     for question in questions_json['questions']}
+                                  self.vocab_size) for question in questions_json['questions']}
         return questions
 
     def _create_answers_dict(self, answers_json_path):
@@ -292,7 +290,7 @@ class VQADataset:
         else:
             id_start = len('COCO_test2015_')
             image_ids_path = images_path + 'test_list.txt'
-        id_end = id_start + 12      # The string id in the image name has 12 characters
+        id_end = id_start + 12  # The string id in the image name has 12 characters
 
         with open(image_ids_path, 'r') as f:
             tmp = f.read()
@@ -305,3 +303,123 @@ class VQADataset:
             image_ids_dict[image_id] = idx
 
         return image_ids_dict
+
+
+class MultiWordVQADataset(VQADataset):
+    def __init__(self, dataset_type, questions_path, answers_path, images_path, tokenizer_path, vocab_size=20000,
+                 question_max_len=None, answer_max_len=None):
+        """Instantiate a new VQADataset that will hold the whole dataset.
+
+        Args:
+            dataset_type (DatasetType): type of dataset
+            questions_path (str): full path (including filename) to the .json included in the VQA dataset holding the
+                questions
+            answers_path (str): full path (including filename) to the .json included in the VQA dataset holding the
+                answers. If dataset_type=TEST, it will be ignored, so None can be passed in this case
+            images_path (str): path to the directory where the images for this dataset are stored
+            tokenizer_path (str): full path (including filename) to the .p file containing the Tokenizer object. If it
+                doesn't exists, this will be the path where the new tokenizer will be saved. It needs to have .p
+                extension
+            vocab_size (int): size of the vocabulary size
+            question_max_len (int): maximum length of the question. If None passed, the max len will be set to the
+                length of the longest question
+            answer_max_len (int): maximum length of the answer. If None passed, the max len will be set to the
+                length of the longest answer
+        """
+
+        # Dataset Type
+        VQADataset.__init__(self, dataset_type, questions_path, answers_path, images_path, tokenizer_path, vocab_size,
+                            question_max_len)
+
+        # Answer max len
+        self.answer_max_len = answer_max_len
+
+    def prepare(self):
+        """Prepares the dataset to be used.
+
+        It will load all the questions and answers in memory and references to the images. It will also create a
+        tokenizer holding the word dictionary and both answers and questions will be tokenized and encoded using that
+        tokenizer.
+        """
+
+        # Load QA
+        questions = self._create_questions_dict(self.questions_path)
+        print('Questions dict created')
+        answers = self._create_answers_dict(self.answers_path)
+        print('Answers dict created')
+        image_ids = self._get_image_ids(self.images_path)
+        images = self._create_images_dict(image_ids)
+        print('Images dict created')
+
+        # Ensure we have a tokenizer with a dictionary
+        self._init_tokenizer(questions, answers)
+
+        aux_len = 0  # To compute the maximum question length
+        # Tokenize and encode questions
+        for _, question in questions.iteritems():
+            question.tokenize(self.tokenizer)
+            # Get the maximum question length
+            if question.get_tokens_length() > aux_len:
+                aux_len = question.get_tokens_length()
+
+        # If the question max len has not been set, assign to the maximum question length in the dataset
+        if not self.question_max_len:
+            self.question_max_len = aux_len
+
+        # Tokenize and encode answers
+        aux_len = 0
+        for _, answer in answers.iteritems():
+            answer.tokenize(self.tokenizer)
+            # Get the maximum answer length
+            if answer.get_tokens_length() > aux_len:
+                aux_len = answer.get_tokens_length()
+
+        # If the answer max len has not been set, assign to the maximum question length in the dataset
+        if not self.answer_max_len:
+            self.answer_max_len = aux_len
+
+        print('Tokenizer created')
+
+        self._create_samples(images, questions, answers)
+
+    def batch_generator(self, batch_size):
+        """Yields a batch of data of size batch_size"""
+
+        # TODO: this only works for TRAIN and VAL, extend to TEST and EVAL
+
+        # Load all the images in memory
+        print('Loading visual features...')
+        features = scipy.io.loadmat(self.features_path)['features']
+        for sample in self.samples:
+            sample.image.load(features, True)
+        print('Visual features loaded')
+
+        num_samples = len(self.samples)
+        batch_start = 0
+        batch_end = batch_size
+
+        while True:
+            # Initialize matrix
+            images = np.zeros((batch_size, 1024), dtype=np.float16)
+            questions = np.zeros((batch_size, self.question_max_len), dtype=np.int32)
+            answers = np.zeros((batch_size, self.answer_max_len, self.vocab_size), dtype=np.bool_)
+            # Assign each sample in the batch
+            for idx, sample in enumerate(self.samples[batch_start:batch_end]):
+                images[idx], questions[idx] = sample.get_input(self.question_max_len)
+                answers[idx] = sample.get_output(self.answer_max_len)
+
+            answers_feedback = np.roll(answers, 1, axis=1)
+            answers_feedback[:, 0, :] = 0
+
+            yield ([images, questions, answers_feedback], answers)
+
+            # Update interval
+            batch_start += batch_size
+            # An epoch has finished
+            if batch_start >= num_samples:
+                batch_start = 0
+                # Change the order so the model won't see the samples in the same order in the next epoch
+                random.shuffle(self.samples)
+            batch_end = batch_start + batch_size
+            if batch_end > num_samples:
+                batch_end = num_samples

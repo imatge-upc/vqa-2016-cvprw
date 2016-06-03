@@ -229,7 +229,7 @@ class CustomModelCheckpoint(ModelCheckpoint):
             os.remove(self.weights_dir_path + 'model_weights_{}'.format(self.model_num))
             # Recreate
             os.symlink(self.weights_dir_path + 'model_weights_{}.{}.hdf5'.format(self.model_num, self.last_epoch),
-                       self.weights_dir_path + 'model_weights_{}'.format(self.model_num))
+                       'model_weights_{}'.format(self.model_num))
             pass
 
 
