@@ -9,11 +9,12 @@ from vqa import BASE_DIR
 class ModelLibrary:
     # ---------------------------------- CONSTANTS --------------------------------
     # Model identifiers
-    MODEL_ONE = 1  # Base model
-    MODEL_TWO = 2  # Batch normalization
-    MODEL_THREE = 3  # Modified learning rate
-    MODEL_FOUR = 4  # Multi-word answer
-    MODEL_FIVE = 5  # Sentence embedding
+    MODEL_ONE = 1       # Base model
+    MODEL_TWO = 2       # Batch normalization
+    MODEL_THREE = 3     # Modified learning rate
+    MODEL_FOUR = 4      # Multi-word answer
+    MODEL_FIVE = 5      # Sentence embedding
+    MODEL_SIX = 6       # Sentence embedding + batch norm
 
     # Generic model parameters
     EMBED_HIDDEN_SIZE = 100
@@ -44,6 +45,8 @@ class ModelLibrary:
             return ModelLibrary.get_model_four(vocabulary_size, question_max_len, answer_max_len)
         elif model_num == ModelLibrary.MODEL_FIVE:
             return ModelLibrary.get_model_five(vocabulary_size, question_max_len)
+        elif model_num == ModelLibrary.MODEL_SIX:
+            return ModelLibrary.get_model_six(vocabulary_size, question_max_len)
 
     @staticmethod
     def get_model_one(vocabulary_size=20000, question_max_len=22):
@@ -272,6 +275,58 @@ class ModelLibrary:
 
             # Merge
             merged = merge([image_features, sentence_embedded], mode='sum')  # Merge for layers, merge for tensors
+            output = Dense(output_dim=vocabulary_size, activation='softmax')(merged)
+
+            vqa_model = Model(input=[image_input, question_input], output=output)
+            print('Model created')
+
+            print('Compiling model...')
+            vqa_model.compile(optimizer=adam, loss='categorical_crossentropy')
+            print('Model compiled')
+
+            print('Saving model...')
+            model_json = vqa_model.to_json()
+            with open(model_path, 'w') as f:
+                f.write(model_json)
+            print('Model saved')
+
+        return vqa_model
+
+    @staticmethod
+    def get_model_six(vocabulary_size=20000, question_max_len=22):
+        model_num = ModelLibrary.MODEL_SIX
+        model_path = ModelLibrary.MODELS_PATH + 'model_{}.json'.format(model_num)
+        # Params
+        lstm_hidden_units = 256
+        # Optimizer
+        adam = Adam(lr=1e-4)
+        # Create/load model
+        try:
+            with open(model_path, 'r') as f:
+                print('Loading model...')
+                vqa_model = model_from_json(f.read())
+                print('Model loaded')
+                print('Compiling model...')
+                vqa_model.compile(optimizer=adam, loss='categorical_crossentropy')
+                print('Model compiled')
+        except IOError:
+            print('Creating model...')
+            # Image
+            image_input = Input(shape=(1024,))
+            image_features = Dense(output_dim=lstm_hidden_units, activation='relu')(image_input)
+            image_features = Dropout(0.5)(image_features)
+
+            # Question
+            question_input = Input(shape=(question_max_len,), dtype='int32')
+            question_embedded = Embedding(input_dim=vocabulary_size, output_dim=ModelLibrary.EMBED_HIDDEN_SIZE,
+                                          input_length=question_max_len)(question_input)  # Can't use masking
+            question_embedded = Dropout(0.5)(question_embedded)
+            sentence_embedded = LSTM(lstm_hidden_units, return_sequences=False)(question_embedded)
+            sentence_embedded = Dropout(0.5)(sentence_embedded)
+
+            # Merge
+            merged = merge([image_features, sentence_embedded], mode='sum')  # Merge for layers, merge for tensors
+            merged = BatchNormalization()(merged)
             output = Dense(output_dim=vocabulary_size, activation='softmax')(merged)
 
             vqa_model = Model(input=[image_input, question_input], output=output)
