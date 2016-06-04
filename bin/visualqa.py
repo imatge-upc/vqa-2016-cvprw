@@ -11,7 +11,7 @@ from keras.callbacks import EarlyStopping, Callback, ModelCheckpoint
 sys.path.append('..')
 
 from vqa.dataset.types import DatasetType
-from vqa.dataset.dataset import VQADataset
+from vqa.dataset.dataset import VQADataset, MergeDataset
 
 from vqa.model.library import ModelLibrary
 
@@ -63,7 +63,7 @@ DEFAULT_ACTION = 'train'
 
 # ------------------------------- SCRIPT FUNCTIONALITY -------------------------------
 
-def main(action, model_num):
+def main(action, model_num, extended):
     print('Action: ' + action)
     print('Model number: {}'.format(model_num))
 
@@ -82,9 +82,16 @@ def main(action, model_num):
         val_dataset = load_dataset(CONFIG_VAL['dataset_type'], CONFIG_VAL['dataset_path'],
                                    CONFIG_VAL['questions_path'], CONFIG_VAL['annotations_path'], FEATURES_DIR_PATH,
                                    TOKENIZER_PATH)
-        weights_path = WEIGHTS_DIR_PATH + 'model_weights_' + str(model_num) + '.{epoch:02d}.hdf5'
-        losses_path = RESULTS_DIR_PATH + 'losses_{}.h5'.format(model_num)
-        train(vqa_model, dataset, model_num, weights_path, losses_path, val_dataset)
+        if extended:
+            extended_dataset = MergeDataset(train_dataset, val_dataset)
+            weights_path = WEIGHTS_DIR_PATH + 'model_weights_' + str(model_num) + '_ext.{epoch:02d}.hdf5'
+            losses_path = RESULTS_DIR_PATH + 'losses_{}_ext.h5'.format(model_num)
+            train(vqa_model, extended_dataset, model_num, weights_path, losses_path, extended=True)
+        else:
+            weights_path = WEIGHTS_DIR_PATH + 'model_weights_' + str(model_num) + '.{epoch:02d}.hdf5'
+            losses_path = RESULTS_DIR_PATH + 'losses_{}.h5'.format(model_num)
+            train(vqa_model, dataset, model_num, weights_path, losses_path, val_dataset=val_dataset)
+
     elif action == 'val':
         dataset = load_dataset(CONFIG_VAL['dataset_type'], CONFIG_VAL['dataset_path'],
                                CONFIG_VAL['questions_path'], CONFIG_VAL['annotations_path'], FEATURES_DIR_PATH,
@@ -132,15 +139,24 @@ def load_dataset(dataset_type, dataset_path, questions_path, annotations_path, f
     return dataset
 
 
-def train(model, dataset, model_num, model_weights_path, losses_path, val_dataset):
+def train(model, dataset, model_num, model_weights_path, losses_path, val_dataset=None, extended=False):
+    if (not extended) and (not val_dataset):
+        raise ValueError('If not using the extended dataset, a validation dataset must be provided')
+
     loss_callback = LossHistoryCallback(losses_path)
     save_weights_callback = CustomModelCheckpoint(model_weights_path, WEIGHTS_DIR_PATH, model_num)
     stop_callback = EarlyStopping(patience=5)
 
     print('Start training...')
-    model.fit_generator(dataset.batch_generator(BATCH_SIZE), samples_per_epoch=dataset.size(), nb_epoch=NUM_EPOCHS,
-                        callbacks=[save_weights_callback, loss_callback, stop_callback],
-                        validation_data=val_dataset.batch_generator(BATCH_SIZE), nb_val_samples=val_dataset.size())
+    if not extended:
+        model.fit_generator(dataset.batch_generator(BATCH_SIZE), samples_per_epoch=dataset.size(), nb_epoch=NUM_EPOCHS,
+                            callbacks=[save_weights_callback, loss_callback, stop_callback],
+                            validation_data=val_dataset.batch_generator(BATCH_SIZE), nb_val_samples=val_dataset.size())
+    else:
+        model.fit_generator(dataset.batch_generator(BATCH_SIZE, split='train'), samples_per_epoch=dataset.train_size(),
+                            nb_epoch=NUM_EPOCHS, callbacks=[save_weights_callback, loss_callback, stop_callback],
+                            validation_data=dataset.batch_generator(BATCH_SIZE, split='val'),
+                            nb_val_samples=dataset.val_size())
     print('Trained')
 
 
@@ -253,6 +269,13 @@ if __name__ == '__main__':
         default=DEFAULT_ACTION,
         help='Which action should be perform on the model. By default, training will be done'
     )
+    parser.add_argument(
+        '-e',
+        '--extended',
+        action='store_true',
+        help='Add this flag if you want to use the extended dataset, this is, use part of the validation dataset to'
+             'train your model. Only valid for the --action=train'
+    )
     # Start script
     args = parser.parse_args()
-    main(args.action, args.model)
+    main(args.action, args.model, args.extended)
