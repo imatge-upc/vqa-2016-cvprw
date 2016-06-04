@@ -11,7 +11,7 @@ from keras.callbacks import EarlyStopping, Callback, ModelCheckpoint
 sys.path.append('..')
 
 from vqa.dataset.types import DatasetType
-from vqa.dataset.dataset import VQADataset
+from vqa.dataset.dataset import VQADataset, MultiWordVQADataset
 
 from vqa.model.library import ModelLibrary
 
@@ -34,24 +34,28 @@ RESULTS_DIR_PATH = '../results/'
 CONFIG_TRAIN = {
     'dataset_type': DatasetType.TRAIN,
     'dataset_path': PREPROCESSED_PATH + 'train_dataset.p',
+    'multi_word_dataset_path': PREPROCESSED_PATH + 'train_dataset_ma.p',
     'questions_path': DATA_PATH + 'train/questions',
     'annotations_path': DATA_PATH + 'train/annotations'
 }
 CONFIG_VAL = {
     'dataset_type': DatasetType.VALIDATION,
     'dataset_path': PREPROCESSED_PATH + 'validate_dataset.p',
+    'multi_word_dataset_path': PREPROCESSED_PATH + 'validate_dataset_ma.p',
     'questions_path': DATA_PATH + 'val/questions',
     'annotations_path': DATA_PATH + 'val/annotations'
 }
 CONFIG_TEST = {
     'dataset_type': DatasetType.TEST,
     'dataset_path': PREPROCESSED_PATH + 'test_dataset.p',
+    'multi_word_dataset_path': PREPROCESSED_PATH + 'test_dataset_ma.p',
     'questions_path': DATA_PATH + 'test/questions',
     'annotations_path': None
 }
 CONFIG_EVAL = {
     'dataset_type': DatasetType.EVAL,
     'dataset_path': PREPROCESSED_PATH + 'eval_dataset.p',
+    'multi_word_dataset_path': PREPROCESSED_PATH + 'eval_dataset_ma.p',
     'questions_path': DATA_PATH + 'val/questions',
     'annotations_path': None
 }
@@ -67,41 +71,50 @@ def main(action, model_num):
     print('Action: ' + action)
     print('Model number: {}'.format(model_num))
 
-    # Always load train dataset to obtain the question_max_len from it
-    train_dataset = load_dataset(CONFIG_TRAIN['dataset_type'], CONFIG_TRAIN['dataset_path'],
+    # Always load train dataset to obtain the question_max_len and answer_max_len from it
+    if model_num != ModelLibrary.MODEL_FOUR:
+        key_config_path = 'dataset_path'
+    else:
+        key_config_path = 'multi_word_dataset_path'
+    train_dataset = load_dataset(CONFIG_TRAIN['dataset_type'], CONFIG_TRAIN[key_config_path],
                                  CONFIG_TRAIN['questions_path'], CONFIG_TRAIN['annotations_path'], FEATURES_DIR_PATH,
-                                 TOKENIZER_PATH)
+                                 TOKENIZER_PATH, model_num)
     question_max_len = train_dataset.question_max_len
+    if model_num == ModelLibrary.MODEL_FOUR:
+        answer_max_len = train_dataset.answer_max_len
+    else:
+        answer_max_len = 1
 
     # Load model
-    vqa_model = ModelLibrary.get_model(model_num, vocabulary_size=VOCABULARY_SIZE, question_max_len=question_max_len)
+    vqa_model = ModelLibrary.get_model(model_num, vocabulary_size=VOCABULARY_SIZE, question_max_len=question_max_len,
+                                       answer_max_len=answer_max_len)
 
     # Load dataset depending on the action to perform
     if action == 'train':
         dataset = train_dataset
-        val_dataset = load_dataset(CONFIG_VAL['dataset_type'], CONFIG_VAL['dataset_path'],
+        val_dataset = load_dataset(CONFIG_VAL['dataset_type'], CONFIG_VAL[key_config_path],
                                    CONFIG_VAL['questions_path'], CONFIG_VAL['annotations_path'], FEATURES_DIR_PATH,
-                                   TOKENIZER_PATH)
+                                   TOKENIZER_PATH, model_num)
         weights_path = WEIGHTS_DIR_PATH + 'model_weights_' + str(model_num) + '.{epoch:02d}.hdf5'
         losses_path = RESULTS_DIR_PATH + 'losses_{}.h5'.format(model_num)
         train(vqa_model, dataset, model_num, weights_path, losses_path, val_dataset)
     elif action == 'val':
-        dataset = load_dataset(CONFIG_VAL['dataset_type'], CONFIG_VAL['dataset_path'],
+        dataset = load_dataset(CONFIG_VAL['dataset_type'], CONFIG_VAL[key_config_path],
                                CONFIG_VAL['questions_path'], CONFIG_VAL['annotations_path'], FEATURES_DIR_PATH,
-                               TOKENIZER_PATH)
+                               TOKENIZER_PATH, model_num)
         weights_path = WEIGHTS_DIR_PATH + 'model_weights_{}'.format(model_num)
         validate(vqa_model, dataset, weights_path)
     elif action == 'test':
-        dataset = load_dataset(CONFIG_TEST['dataset_type'], CONFIG_TEST['dataset_path'],
+        dataset = load_dataset(CONFIG_TEST['dataset_type'], CONFIG_TEST[key_config_path],
                                CONFIG_TEST['questions_path'], CONFIG_TEST['annotations_path'], FEATURES_DIR_PATH,
-                               TOKENIZER_PATH)
+                               TOKENIZER_PATH, model_num)
         weights_path = WEIGHTS_DIR_PATH + 'model_weights_{}'.format(model_num)
         results_path = RESULTS_DIR_PATH + 'test2015_results_{}.json'.format(model_num)
         test(vqa_model, dataset, weights_path, results_path)
     elif action == 'eval':
-        dataset = load_dataset(CONFIG_EVAL['dataset_type'], CONFIG_EVAL['dataset_path'],
+        dataset = load_dataset(CONFIG_EVAL['dataset_type'], CONFIG_EVAL[key_config_path],
                                CONFIG_EVAL['questions_path'], CONFIG_EVAL['annotations_path'], FEATURES_DIR_PATH,
-                               TOKENIZER_PATH)
+                               TOKENIZER_PATH, model_num)
         weights_path = WEIGHTS_DIR_PATH + 'model_weights_{}'.format(model_num)
         results_path = RESULTS_DIR_PATH + 'val2014_results_{}.json'.format(model_num)
         test(vqa_model, dataset, weights_path, results_path)
@@ -109,7 +122,8 @@ def main(action, model_num):
         raise ValueError('The action you provided do not exist')
 
 
-def load_dataset(dataset_type, dataset_path, questions_path, annotations_path, features_dir_path, tokenizer_path):
+def load_dataset(dataset_type, dataset_path, questions_path, annotations_path, features_dir_path, tokenizer_path,
+                 model_num):
     try:
         with open(dataset_path, 'r') as f:
             print('Loading dataset...')
@@ -117,8 +131,12 @@ def load_dataset(dataset_type, dataset_path, questions_path, annotations_path, f
             print('Dataset loaded')
     except IOError:
         print('Creating dataset...')
-        dataset = VQADataset(dataset_type, questions_path, annotations_path, features_dir_path,
-                             tokenizer_path, vocab_size=VOCABULARY_SIZE)
+        if model_num != ModelLibrary.MODEL_FOUR:
+            dataset = VQADataset(dataset_type, questions_path, annotations_path, features_dir_path,
+                                 tokenizer_path, vocab_size=VOCABULARY_SIZE)
+        else:
+            dataset = MultiWordVQADataset(dataset_type, questions_path, annotations_path, features_dir_path,
+                                          tokenizer_path, vocab_size=VOCABULARY_SIZE)
         print('Preparing dataset...')
         dataset.prepare()
         print('Dataset size: %d' % dataset.size())
