@@ -5,7 +5,6 @@ import random
 import numpy as np
 import os
 import scipy.io
-
 from keras.preprocessing.text import Tokenizer
 
 from sample import Question, Answer, Image, VQASample
@@ -292,7 +291,7 @@ class VQADataset:
         else:
             id_start = len('COCO_test2015_')
             image_ids_path = images_path + 'test_list.txt'
-        id_end = id_start + 12      # The string id in the image name has 12 characters
+        id_end = id_start + 12  # The string id in the image name has 12 characters
 
         with open(image_ids_path, 'r') as f:
             tmp = f.read()
@@ -305,3 +304,78 @@ class VQADataset:
             image_ids_dict[image_id] = idx
 
         return image_ids_dict
+
+
+class MergeDataset:
+    def __init__(self, train_dataset, val_dataset, percentage=0.7):
+        if not isinstance(train_dataset, VQADataset):
+            raise TypeError('train_dataset has to be an instance of VQADataset')
+
+        if not isinstance(val_dataset, VQADataset):
+            raise TypeError('val_dataset has to be an instance of VQADataset')
+
+        self.percentage = percentage
+
+        # Get parameters
+        self.features_path = train_dataset.features_path
+        self.question_max_len = train_dataset.question_max_len
+        self.vocab_size = train_dataset.vocab_size
+
+        # Split validation dataset to use some of it for training
+        self.train_samples = train_dataset.samples
+        print('Training samples: {}'.format(len(self.train_samples)))
+        self.val_samples = val_dataset.samples
+        print('Validation samples: {}'.format(len(self.val_samples)))
+        random.shuffle(self.val_samples)
+        threshold = int(self.percentage * len(self.val_samples))
+        self.train_samples = self.train_samples + self.val_samples[:threshold]
+        self.val_samples = self.val_samples[threshold:]
+
+    def batch_generator(self, batch_size, split='train'):
+        """Yields a batch of data of size batch_size"""
+
+        # Load all the images in memory
+        print('Loading visual features...')
+        features = scipy.io.loadmat(self.features_path)['features']
+
+        if split == 'train':
+            samples = self.train_samples
+        else:
+            samples = self.val_samples
+
+        for sample in samples:
+            sample.image.load(features, True)
+        print('Visual features loaded')
+
+        num_samples = len(samples)
+        batch_start = 0
+        batch_end = batch_size
+
+        while True:
+            # Initialize matrix
+            I = np.zeros((batch_size, 1024), dtype=np.float16)
+            Q = np.zeros((batch_size, self.question_max_len), dtype=np.int32)
+            A = np.zeros((batch_size, self.vocab_size), dtype=np.bool_)
+            # Assign each sample in the batch
+            for idx, sample in enumerate(samples[batch_start:batch_end]):
+                I[idx], Q[idx] = sample.get_input(self.question_max_len)
+                A[idx] = sample.get_output()
+
+            yield ([I, Q], A)
+
+            # Update interval
+            batch_start += batch_size
+            # An epoch has finished
+            if batch_start >= num_samples:
+                batch_start = 0
+                # Change the order so the model won't see the samples in the same order in the next epoch
+                random.shuffle(samples)
+            batch_end = batch_start + batch_size
+            if batch_end > num_samples:
+                batch_end = num_samples
+
+    def train_size(self):
+        return len(self.train_samples)
+
+    def val_size(self):
+        return len(self.val_samples)
