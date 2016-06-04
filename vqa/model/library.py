@@ -299,7 +299,7 @@ class ModelLibrary:
         # Params
         lstm_hidden_units = 256
         # Optimizer
-        adam = Adam(lr=1e-4)
+        adam = Adam(lr=1e-5)
         # Create/load model
         try:
             with open(model_path, 'r') as f:
