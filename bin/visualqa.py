@@ -19,7 +19,6 @@ from vqa.model.library import ModelLibrary
 # Constants
 ACTIONS = ['train', 'val', 'test', 'eval']
 VOCABULARY_SIZE = 20000
-EMBED_HIDDEN_SIZE = 100
 NUM_EPOCHS = 40
 BATCH_SIZE = 128
 
@@ -75,8 +74,7 @@ def main(action, model_num):
     question_max_len = train_dataset.question_max_len
 
     # Load model
-    vqa_model = ModelLibrary.get_model(model_num, vocabulary_size=VOCABULARY_SIZE, embed_hidden_size=EMBED_HIDDEN_SIZE,
-                                       question_max_len=question_max_len)
+    vqa_model = ModelLibrary.get_model(model_num, vocabulary_size=VOCABULARY_SIZE, question_max_len=question_max_len)
 
     # Load dataset depending on the action to perform
     if action == 'train':
@@ -137,12 +135,11 @@ def load_dataset(dataset_type, dataset_path, questions_path, annotations_path, f
 def train(model, dataset, model_num, model_weights_path, losses_path, val_dataset):
     loss_callback = LossHistoryCallback(losses_path)
     save_weights_callback = CustomModelCheckpoint(model_weights_path, WEIGHTS_DIR_PATH, model_num)
-    # TODO: add the early stopping again
-    # stop_callback = EarlyStopping(patience=5)
+    stop_callback = EarlyStopping(patience=5)
 
     print('Start training...')
     model.fit_generator(dataset.batch_generator(BATCH_SIZE), samples_per_epoch=dataset.size(), nb_epoch=NUM_EPOCHS,
-                        callbacks=[save_weights_callback, loss_callback],
+                        callbacks=[save_weights_callback, loss_callback, stop_callback],
                         validation_data=val_dataset.batch_generator(BATCH_SIZE), nb_val_samples=val_dataset.size())
     print('Trained')
 
@@ -153,7 +150,7 @@ def validate(model, dataset, weights_path):
     print('Weights loaded')
     print('Start validation...')
     result = model.evaluate_generator(dataset.batch_generator(BATCH_SIZE), val_samples=dataset.size())
-    print('Validated')
+    print('Validated. Loss: {}'.format(result))
 
     return result
 
@@ -232,7 +229,7 @@ class CustomModelCheckpoint(ModelCheckpoint):
             os.remove(self.weights_dir_path + 'model_weights_{}'.format(self.model_num))
             # Recreate
             os.symlink(self.weights_dir_path + 'model_weights_{}.{}.hdf5'.format(self.model_num, self.last_epoch),
-                       self.weights_dir_path + 'model_weights_{}'.format(self.model_num))
+                       'model_weights_{}'.format(self.model_num))
             pass
 
 
