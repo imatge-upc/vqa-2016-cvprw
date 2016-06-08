@@ -323,13 +323,13 @@ class MergeDataset:
 
         # Split validation dataset to use some of it for training
         self.train_samples = train_dataset.samples
-        print('Training samples: {}'.format(len(self.train_samples)))
         self.val_samples = val_dataset.samples
-        print('Validation samples: {}'.format(len(self.val_samples)))
         random.shuffle(self.val_samples)
         threshold = int(self.percentage * len(self.val_samples))
         self.train_samples = self.train_samples + self.val_samples[:threshold]
         self.val_samples = self.val_samples[threshold:]
+        print('Training samples: {}'.format(len(self.train_samples)))
+        print('Validation samples: {}'.format(len(self.val_samples)))
 
     def batch_generator(self, batch_size, split='train'):
         """Yields a batch of data of size batch_size"""
