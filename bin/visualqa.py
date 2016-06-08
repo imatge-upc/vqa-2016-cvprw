@@ -66,6 +66,7 @@ DEFAULT_ACTION = 'train'
 def main(action, model_num, extended):
     print('Action: ' + action)
     print('Model number: {}'.format(model_num))
+    print('Extended: {}'.format(extended))
 
     # Always load train dataset to obtain the question_max_len from it
     train_dataset = load_dataset(CONFIG_TRAIN['dataset_type'], CONFIG_TRAIN['dataset_path'],
@@ -102,15 +103,23 @@ def main(action, model_num, extended):
         dataset = load_dataset(CONFIG_TEST['dataset_type'], CONFIG_TEST['dataset_path'],
                                CONFIG_TEST['questions_path'], CONFIG_TEST['annotations_path'], FEATURES_DIR_PATH,
                                TOKENIZER_PATH)
-        weights_path = WEIGHTS_DIR_PATH + 'model_weights_{}'.format(model_num)
-        results_path = RESULTS_DIR_PATH + 'test2015_results_{}.json'.format(model_num)
+        if not extended:
+            weights_path = WEIGHTS_DIR_PATH + 'model_weights_{}'.format(model_num)
+            results_path = RESULTS_DIR_PATH + 'test2015_results_{}.json'.format(model_num)
+        else:
+            weights_path = WEIGHTS_DIR_PATH + 'model_weights_{}_ext'.format(model_num)
+            results_path = RESULTS_DIR_PATH + 'test2015_results_{}_ext.json'.format(model_num)
         test(vqa_model, dataset, weights_path, results_path)
     elif action == 'eval':
         dataset = load_dataset(CONFIG_EVAL['dataset_type'], CONFIG_EVAL['dataset_path'],
                                CONFIG_EVAL['questions_path'], CONFIG_EVAL['annotations_path'], FEATURES_DIR_PATH,
                                TOKENIZER_PATH)
-        weights_path = WEIGHTS_DIR_PATH + 'model_weights_{}'.format(model_num)
-        results_path = RESULTS_DIR_PATH + 'val2014_results_{}.json'.format(model_num)
+        if not extended:
+            weights_path = WEIGHTS_DIR_PATH + 'model_weights_{}'.format(model_num)
+            results_path = RESULTS_DIR_PATH + 'val2014_results_{}.json'.format(model_num)
+        else:
+            weights_path = WEIGHTS_DIR_PATH + 'model_weights_{}_ext'.format(model_num)
+            results_path = RESULTS_DIR_PATH + 'val2014_results_{}_ext.json'.format(model_num)
         test(vqa_model, dataset, weights_path, results_path)
     else:
         raise ValueError('The action you provided do not exist')
