@@ -19,11 +19,75 @@
     </section>
 
     <section class="main-content">
-      <p>This is the project page of the UPC team participating in the <a href="http://www.visualqa.org/challenge.html">VQA challenge</a> for CVPR 2016. Details of the proposed solutions will be posted after the deadline.</p>
+      <h1>
+<a id="visual-question-answering" class="anchor" href="#visual-question-answering" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Visual Question Answering</h1>
 
-<p>Main contributor: Issey Masuda
-Advisors: Santi Pascual and Xavier Giro-i-Nieto
-Institution: <a href="http://www.upc.edu">Universitat Politecnica de Catalunya</a></p>
+<p>This is the project page of the UPC team participating in the <a href="http://www.visualqa.org/challenge.html">VQA challenge</a> for CVPR 2016. Details of the proposed solutions will be posted after the deadline.</p>
+
+
+
+<table>
+<thead>
+<tr>
+<th align="center">Main contributor</th>
+<th align="center">Advisor</th>
+<th align="center">Co-advisor</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Issey Masuda Mora</td>
+<td align="center">Xavier Giró-i-Nieto</td>
+<td align="center">Santiago Pascual de la Puente</td>
+</tr>
+</tbody>
+</table>
+
+<p>Institution: <a href="http://www.upc.edu">Universitat Politecnica de Catalunya</a>.</p>
+
+<h2>
+<a id="abstract" class="anchor" href="#abstract" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Abstract</h2>
+
+<p>Deep learning techniques have been proven to be a great success for some basic perceptual tasks like object detection and recognition. 
+They have also shown good performance on tasks such as image captioning but these models are not that good when a higher reasoning is needed.</p>
+
+<p>Visual Question-Answering tasks require the model to have a much deeper comprehension and understanding of the scene and the realtions between the objects
+in it than that required for image captioning. The aim of these tasks is to be able to predict an answer given a question related to an image.</p>
+
+<p>Different scenarios have been proposed to tackle this problem, from multiple-choice to open-ended questions. Here we have only addressed the
+open-ended model.</p>
+
+<h2>
+<a id="what-are-you-going-to-find-here" class="anchor" href="#what-are-you-going-to-find-here" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>What are you going to find here</h2>
+
+<p>This project gives a baseline code to start developing on Visual Question-Answering tasks, specifically those focused on the <a href="http://www.visualqa.org/challenge.html">VQA challenge</a>. Here you will find
+an example on how to implement your models with <a href="http://keras.io/">Keras</a> and train, validate and test them on the <a href="http://www.visualqa.org/download.html">VQA dataset</a>. Note that we are still building things upon this 
+project so the code is not ready to be imported as a module but we would like to share it with the community to give a starting point for newcomers. </p>
+
+<h2>
+<a id="dependencies" class="anchor" href="#dependencies" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Dependencies</h2>
+
+<p>This project is build using the <a href="https://github.com/fchollet/keras">Keras</a> library for Deep Learning, which can use as a backend both <a href="https://github.com/Theano/Theano">Theano</a> 
+and <a href="https://github.com/tensorflow/tensorflow">TensorFlow</a>.</p>
+
+<p>We have used Theano in order to develop the project and it has not been tested with TensorFlow.</p>
+
+<p>For a further and more complete of all the dependencies used within this project, check out the requirements.txt provided in the project. This file will help you to recreate the exact
+same Python environment that we worked with.</p>
+
+<h2>
+<a id="project-structure" class="anchor" href="#project-structure" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Project structure</h2>
+
+<p>The main files/dir are the following:</p>
+
+<ul>
+<li>bin: all the scripts that uses the vqa module are here. This is your entry point.</li>
+<li>data: the get_dataset.py script will download the whole dataset for you and place it where it can access it. Alternatively, you can provide the route of
+the dataset if you have already downloaded it. The vqa module created some directory structure to place preprocessed files</li>
+<li>vqa: this is a python package with the core of the project</li>
+<li>requirements.txt: to be able to reproduce the python environment. You only need to do <code>pip install</code> in the project's root and it will install all
+the dependencies needed</li>
+</ul>
 
 <h2>
 <a id="related-work" class="anchor" href="#related-work" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Related work</h2>
@@ -33,14 +97,20 @@ Institution: <a href="http://www.upc.edu">Universitat Politecnica de Catalunya</
 </li>
 <li>Antol, Stanislaw, Aishwarya Agrawal, Jiasen Lu, Margaret Mitchell, Dhruv Batra, C. Lawrence Zitnick, and Devi Parikh. <a href="http://www.cv-foundation.org/openaccess/content_iccv_2015/html/Antol_VQA_Visual_Question_ICCV_2015_paper.html">"VQA: Visual question answering."</a> In Proceedings of the IEEE International Conference on Computer Vision, pp. 2425-2433. 2015. <a href="http://gitxiv.com/posts/zDn9kkA66FnG3ZuKz/vqa-visual-question-answering">[code]</a>
 </li>
-<li> Zhu, Yuke, Oliver Groth, Michael Bernstein, and Li Fei-Fei. <a href="http://web.stanford.edu/%7Eyukez/visual7w.html">"Visual7W: Grounded Question Answering in Images."</a> arXiv preprint arXiv:1511.03416 (2015).</li>
-<li> Malinowski, Mateusz, Marcus Rohrbach, and Mario Fritz. <a href="http://www.cv-foundation.org/openaccess/content_iccv_2015/html/Malinowski_Ask_Your_Neurons_ICCV_2015_paper.html">"Ask your neurons: A neural-based approach to answering questions about images."</a> In Proceedings of the IEEE International Conference on Computer Vision, pp. 1-9. 2015. <a href="https://www.mpi-inf.mpg.de/departments/computer-vision-and-multimodal-computing/research/vision-and-language/visual-turing-challenge/">[code]</a>
+<li>Zhu, Yuke, Oliver Groth, Michael Bernstein, and Li Fei-Fei. <a href="http://web.stanford.edu/%7Eyukez/visual7w.html">"Visual7W: Grounded Question Answering in Images."</a> arXiv preprint arXiv:1511.03416 (2015).</li>
+<li>Malinowski, Mateusz, Marcus Rohrbach, and Mario Fritz. <a href="http://www.cv-foundation.org/openaccess/content_iccv_2015/html/Malinowski_Ask_Your_Neurons_ICCV_2015_paper.html">"Ask your neurons: A neural-based approach to answering questions about images."</a> In Proceedings of the IEEE International Conference on Computer Vision, pp. 1-9. 2015. <a href="https://www.mpi-inf.mpg.de/departments/computer-vision-and-multimodal-computing/research/vision-and-language/visual-turing-challenge/">[code]</a>
 </li>
-<li> Xiong, Caiming, Stephen Merity, and Richard Socher. <a href="http://arxiv.org/abs/1603.01417">"Dynamic Memory Networks for Visual and Textual Question Answering."</a> arXiv preprint arXiv:1603.01417 (2016). <a href="https://news.ycombinator.com/item?id=11237125">[discussion]</a> <a href="http://www.nytimes.com/2016/03/07/technology/taking-baby-steps-toward-software-that-reasons-like-humans.html?_r=0">[Thew New York Times]</a>
+<li>Xiong, Caiming, Stephen Merity, and Richard Socher. <a href="http://arxiv.org/abs/1603.01417">"Dynamic Memory Networks for Visual and Textual Question Answering."</a> arXiv preprint arXiv:1603.01417 (2016). <a href="https://news.ycombinator.com/item?id=11237125">[discussion]</a> <a href="http://www.nytimes.com/2016/03/07/technology/taking-baby-steps-toward-software-that-reasons-like-humans.html?_r=0">[Thew New York Times]</a>
 </li>
 <li>Serban, Iulian Vlad, Alberto García-Durán, Caglar Gulcehre, Sungjin Ahn, Sarath Chandar, Aaron Courville, and Yoshua Bengio. <a href="http://arxiv.org/abs/1603.06807">"Generating Factoid Questions With Recurrent Neural Networks: The 30M Factoid Question-Answer Corpus."</a> arXiv preprint arXiv:1603.06807 (2016). <a href="http://agarciaduran.org/">[dataset]</a>
 </li>
 </ul>
+
+
+
+
+
+
 
       <footer class="site-footer">
         <span class="site-footer-owner"><a href="https://github.com/imatge-upc/vqa-2016">Visual Question Answering for CVPR 2016</a> is maintained by <a href="https://github.com/imatge-upc">imatge-upc</a>.</span>
