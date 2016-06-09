@@ -5,7 +5,7 @@ This is the project page of the UPC team participating in the [VQA challenge][vq
 <!--| ![Issey Masuda Mora][image-issey] | ![Xavier Giró-i-Nieto][image-xavier] | ![Santiago Pascual de la Puente][image-santi] |-->
 | Main contributor | Advisor | Co-advisor |
 | :---: | :---: | :---: |
-| Issey Masuda Mora | Xavier Giró-i-Nieto | Santiago Pascual de la Puente |
+| Issey Masuda Mora | [Xavier Giró-i-Nieto][web-xavier] | Santiago Pascual de la Puente |
 
 Institution: [Universitat Politecnica de Catalunya](http://www.upc.edu).
 
@@ -52,6 +52,20 @@ the dataset if you have already downloaded it. The vqa module created some direc
 the dependencies needed
 
 
+## The model
+
+We have participated into the [VQA challenge][vqa-challenge] with the following model. 
+
+Our model is composed of two branches, one leading with the question and the other one with the image, that are merged to predict the answer.
+The question branch takes the question as tokens and obtains the word embedding of each token. Then, we feed these word embeddings into a LSTM and we take
+its last state (once it has seen all the question) as our question representation, which is a sentence embedding.
+For the image branch, we have first precomputed the visual features of the images with a Kernalized CNNs (KCNNs) [Liu 2015]. We project these features into
+the same space as the question embedding using a fully-connected layer.
+
+Once we have both the visual and text features, we merge them suming both vectors as they belong to the same space. This final representation is given to
+another fully-connected layer softmax to predict the answer, which will be a one-hot representation of the word (we are predicting a single word as our answer).
+
+
 ## Related work
 
 * Ren, Mengye, Ryan Kiros, and Richard Zemel. ["Exploring models and data for image question answering."](http://papers.nips.cc/paper/5640-exploring-models-and-data-for-image-question-answering) In Advances in Neural Information Processing Systems, pp. 2935-2943. 2015. [[code]](http://gitxiv.com/posts/6pFP3b8gqxWZdBfjf/exploring-models-and-data-for-image-question-answering)
@@ -61,9 +75,30 @@ the dependencies needed
 * Xiong, Caiming, Stephen Merity, and Richard Socher. ["Dynamic Memory Networks for Visual and Textual Question Answering."](http://arxiv.org/abs/1603.01417) arXiv preprint arXiv:1603.01417 (2016). [[discussion]](https://news.ycombinator.com/item?id=11237125) [[Thew New York Times]](http://www.nytimes.com/2016/03/07/technology/taking-baby-steps-toward-software-that-reasons-like-humans.html?_r=0)
 * Serban, Iulian Vlad, Alberto García-Durán, Caglar Gulcehre, Sungjin Ahn, Sarath Chandar, Aaron Courville, and Yoshua Bengio. ["Generating Factoid Questions With Recurrent Neural Networks: The 30M Factoid Question-Answer Corpus."](http://arxiv.org/abs/1603.06807) arXiv preprint arXiv:1603.06807 (2016). [[dataset]](http://agarciaduran.org/)
 
+
+## Acknowledgements
+
+We would like to especially thank Albert Gil Moreno and Josep Pujal from our technical support team at the Image Processing Group at the UPC.
+
+| ![Albert Gil][image-albert] | ![Josep Pujal][image-josep]  |
+| :---: | :---: |
+| [Albert Gil](web-albert)  |  [Josep Pujal](web-josep) |
+
+
+
+## Contact
+If you have any general doubt about our work or code which may be of interest for other researchers, please use the [issues section](https://github.com/imatge-upc/vqa-2016/issues) 
+on this github repo. Alternatively, drop us an e-mail at [xavier.giro@upc.edu](mailto:xavier.giro@upc.edu).
+
 <!--[image-issey]: http-->
 <!--[image-xavier]: http-->
 <!--[image-santi]: http-->
+[image-albert]: https://raw.githubusercontent.com/imatge-upc/saliency-2016-cvpr/master/authors/AlbertGil.jpg "Albert Gil"
+[image-josep]: https://raw.githubusercontent.com/imatge-upc/saliency-2016-cvpr/master/authors/JosepPujal.jpg "Josep Pujal"
+
+[web-xavier]: https://imatge.upc.edu/web/people/xavier-giro
+[web-albert]: https://imatge.upc.edu/web/people/albert-gil-moreno
+[web-josep]: https://imatge.upc.edu/web/people/josep-pujal
 
 [vqa-challenge]: http://www.visualqa.org/challenge.html
 [vqa-dataset]: http://www.visualqa.org/download.html
