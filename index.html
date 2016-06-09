@@ -37,7 +37,7 @@
 <tbody>
 <tr>
 <td align="center">Issey Masuda Mora</td>
-<td align="center">Xavier Giró-i-Nieto</td>
+<td align="center"><a href="https://imatge.upc.edu/web/people/xavier-giro">Xavier Giró-i-Nieto</a></td>
 <td align="center">Santiago Pascual de la Puente</td>
 </tr>
 </tbody>
@@ -90,6 +90,20 @@ the dependencies needed</li>
 </ul>
 
 <h2>
+<a id="the-model" class="anchor" href="#the-model" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>The model</h2>
+
+<p>We have participated into the <a href="http://www.visualqa.org/challenge.html">VQA challenge</a> with the following model. </p>
+
+<p>Our model is composed of two branches, one leading with the question and the other one with the image, that are merged to predict the answer.
+The question branch takes the question as tokens and obtains the word embedding of each token. Then, we feed these word embeddings into a LSTM and we take
+its last state (once it has seen all the question) as our question representation, which is a sentence embedding.
+For the image branch, we have first precomputed the visual features of the images with a Kernalized CNNs (KCNNs) [Liu 2015]. We project these features into
+the same space as the question embedding using a fully-connected layer.</p>
+
+<p>Once we have both the visual and text features, we merge them suming both vectors as they belong to the same space. This final representation is given to
+another fully-connected layer softmax to predict the answer, which will be a one-hot representation of the word (we are predicting a single word as our answer).</p>
+
+<h2>
 <a id="related-work" class="anchor" href="#related-work" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Related work</h2>
 
 <ul>
@@ -105,6 +119,32 @@ the dependencies needed</li>
 <li>Serban, Iulian Vlad, Alberto García-Durán, Caglar Gulcehre, Sungjin Ahn, Sarath Chandar, Aaron Courville, and Yoshua Bengio. <a href="http://arxiv.org/abs/1603.06807">"Generating Factoid Questions With Recurrent Neural Networks: The 30M Factoid Question-Answer Corpus."</a> arXiv preprint arXiv:1603.06807 (2016). <a href="http://agarciaduran.org/">[dataset]</a>
 </li>
 </ul>
+
+<h2>
+<a id="acknowledgements" class="anchor" href="#acknowledgements" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Acknowledgements</h2>
+
+<p>We would like to especially thank Albert Gil Moreno and Josep Pujal from our technical support team at the Image Processing Group at the UPC.</p>
+
+<table>
+<thead>
+<tr>
+<th align="center"><img src="https://raw.githubusercontent.com/imatge-upc/saliency-2016-cvpr/master/authors/AlbertGil.jpg" alt="Albert Gil" title="Albert Gil"></th>
+<th align="center"><img src="https://raw.githubusercontent.com/imatge-upc/saliency-2016-cvpr/master/authors/JosepPujal.jpg" alt="Josep Pujal" title="Josep Pujal"></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center"><a href="web-albert">Albert Gil</a></td>
+<td align="center"><a href="web-josep">Josep Pujal</a></td>
+</tr>
+</tbody>
+</table>
+
+<h2>
+<a id="contact" class="anchor" href="#contact" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Contact</h2>
+
+<p>If you have any general doubt about our work or code which may be of interest for other researchers, please use the <a href="https://github.com/imatge-upc/vqa-2016/issues">issues section</a> 
+on this github repo. Alternatively, drop us an e-mail at <a href="mailto:xavier.giro@upc.edu">xavier.giro@upc.edu</a>.</p>
 
 
 
