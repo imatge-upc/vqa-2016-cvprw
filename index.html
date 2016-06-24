@@ -13,9 +13,9 @@
     <section class="page-header">
       <h1 class="project-name">Visual Question Answering for CVPR 2016</h1>
       <h2 class="project-tagline">UPC team</h2>
-      <a href="https://github.com/imatge-upc/vqa-2016" class="btn">View on GitHub</a>
-      <a href="https://github.com/imatge-upc/vqa-2016/zipball/master" class="btn">Download .zip</a>
-      <a href="https://github.com/imatge-upc/vqa-2016/tarball/master" class="btn">Download .tar.gz</a>
+      <a href="https://github.com/imatge-upc/vqa-2016-cvprw" class="btn">View on GitHub</a>
+      <a href="https://github.com/imatge-upc/vqa-2016-cvprw/zipball/master" class="btn">Download .zip</a>
+      <a href="https://github.com/imatge-upc/vqa-2016-cvprw/tarball/master" class="btn">Download .tar.gz</a>
     </section>
 
     <section class="main-content">
@@ -24,17 +24,20 @@
 
 <p>This is the project page of the UPC team participating in the <a href="http://www.visualqa.org/challenge.html">VQA challenge</a> for CVPR 2016. Details of the proposed solutions will be posted after the deadline.</p>
 
-
-
 <table>
 <thead>
 <tr>
-<th align="center">Main contributor</th>
-<th align="center">Advisor</th>
-<th align="center">Co-advisor</th>
+<th align="center"><img src="https://raw.githubusercontent.com/imatge-upc/vqa-2016-cvprw/gh-pages/img/issey_masuda.jpg" alt="Issey Masuda Mora" title="Issey Masuda Mora"></th>
+<th align="center"><img src="https://raw.githubusercontent.com/imatge-upc/vqa-2016-cvprw/gh-pages/img/xavier_giro.jpg" alt="Xavier Giró-i-Nieto" title="Xavier Giró-i-Nieto"></th>
+<th align="center"><img src="https://raw.githubusercontent.com/imatge-upc/vqa-2016-cvprw/gh-pages/img/santi_pascual.jpg" alt="Santiago Pascual de la Puente" title="Santiago Pascual de la Puente"></th>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td align="center">Main contributor</td>
+<td align="center">Advisor</td>
+<td align="center">Co-advisor</td>
+</tr>
 <tr>
 <td align="center">Issey Masuda Mora</td>
 <td align="center"><a href="https://imatge.upc.edu/web/people/xavier-giro">Xavier Giró-i-Nieto</a></td>
@@ -43,7 +46,9 @@
 </tbody>
 </table>
 
-<p>Institution: <a href="http://www.upc.edu">Universitat Politecnica de Catalunya</a>.</p>
+<p>Institution: <a href="http://www.upc.edu">Universitat Politècnica de Catalunya</a>.</p>
+
+<p><img src="https://raw.githubusercontent.com/imatge-upc/vqa-2016-cvprw/gh-pages/img/upc_etsetb.jpg" alt="Universitat Politècnica de Catalunya"></p>
 
 <h2>
 <a id="abstract" class="anchor" href="#abstract" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Abstract</h2>
@@ -72,7 +77,7 @@ and <a href="https://github.com/tensorflow/tensorflow">TensorFlow</a>.</p>
 
 <p>We have used Theano in order to develop the project and it has not been tested with TensorFlow.</p>
 
-<p>For a further and more complete of all the dependencies used within this project, check out the requirements.txt provided in the project. This file will help you to recreate the exact
+<p>For a further and more complete of all the dependencies used within this project, check out the requirements.txt provided within the project. This file will help you to recreate the exact
 same Python environment that we worked with.</p>
 
 <h2>
@@ -98,10 +103,12 @@ the dependencies needed</li>
 The question branch takes the question as tokens and obtains the word embedding of each token. Then, we feed these word embeddings into a LSTM and we take
 its last state (once it has seen all the question) as our question representation, which is a sentence embedding.
 For the image branch, we have first precomputed the visual features of the images with a Kernalized CNNs (KCNNs) [Liu 2015]. We project these features into
-the same space as the question embedding using a fully-connected layer.</p>
+the same space as the question embedding using a fully-connected layer with ReLU activation function.</p>
 
 <p>Once we have both the visual and text features, we merge them suming both vectors as they belong to the same space. This final representation is given to
 another fully-connected layer softmax to predict the answer, which will be a one-hot representation of the word (we are predicting a single word as our answer).</p>
+
+<p><img src="https://raw.githubusercontent.com/imatge-upc/vqa-2016-cvprw/gh-pages/img/model.jpg" alt="Model architecture"></p>
 
 <h2>
 <a id="related-work" class="anchor" href="#related-work" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Related work</h2>
@@ -128,8 +135,8 @@ another fully-connected layer softmax to predict the answer, which will be a one
 <table>
 <thead>
 <tr>
-<th align="center"><img src="https://raw.githubusercontent.com/imatge-upc/saliency-2016-cvpr/master/authors/AlbertGil.jpg" alt="Albert Gil" title="Albert Gil"></th>
-<th align="center"><img src="https://raw.githubusercontent.com/imatge-upc/saliency-2016-cvpr/master/authors/JosepPujal.jpg" alt="Josep Pujal" title="Josep Pujal"></th>
+<th align="center"><img src="https://raw.githubusercontent.com/imatge-upc/vqa-2016-cvprw/gh-pages/img/albert_gil.jpg" alt="Albert Gil" title="Albert Gil"></th>
+<th align="center"><img src="https://raw.githubusercontent.com/imatge-upc/vqa-2016-cvprw/gh-pages/img/josep_pujal.jpg" alt="Josep Pujal" title="Josep Pujal"></th>
 </tr>
 </thead>
 <tbody>
@@ -150,10 +157,8 @@ on this github repo. Alternatively, drop us an e-mail at <a href="mailto:xavier.
 
 
 
-
-
       <footer class="site-footer">
-        <span class="site-footer-owner"><a href="https://github.com/imatge-upc/vqa-2016">Visual Question Answering for CVPR 2016</a> is maintained by <a href="https://github.com/imatge-upc">imatge-upc</a>.</span>
+        <span class="site-footer-owner"><a href="https://github.com/imatge-upc/vqa-2016-cvprw">Visual Question Answering for CVPR 2016</a> is maintained by <a href="https://github.com/imatge-upc">imatge-upc</a>.</span>
 
         <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
       </footer>
