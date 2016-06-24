@@ -2,12 +2,14 @@
 
 This is the project page of the UPC team participating in the [VQA challenge][vqa-challenge] for CVPR 2016. Details of the proposed solutions will be posted after the deadline.
 
-<!--| ![Issey Masuda Mora][image-issey] | ![Xavier Giró-i-Nieto][image-xavier] | ![Santiago Pascual de la Puente][image-santi] |-->
-| Main contributor | Advisor | Co-advisor |
+| ![Issey Masuda Mora][image-issey] | ![Xavier Giró-i-Nieto][image-xavier] | ![Santiago Pascual de la Puente][image-santi] |
 | :---: | :---: | :---: |
+| Main contributor | Advisor | Co-advisor |
 | Issey Masuda Mora | [Xavier Giró-i-Nieto][web-xavier] | Santiago Pascual de la Puente |
 
-Institution: [Universitat Politecnica de Catalunya](http://www.upc.edu).
+Institution: [Universitat Politècnica de Catalunya](http://www.upc.edu).
+
+![Universitat Politècnica de Catalunya][image-upc-logo]
 
 
 ## Abstract
@@ -36,7 +38,7 @@ and [TensorFlow](https://github.com/tensorflow/tensorflow).
 
 We have used Theano in order to develop the project and it has not been tested with TensorFlow.
 
-For a further and more complete of all the dependencies used within this project, check out the requirements.txt provided in the project. This file will help you to recreate the exact
+For a further and more complete of all the dependencies used within this project, check out the requirements.txt provided within the project. This file will help you to recreate the exact
 same Python environment that we worked with.
 
 
@@ -60,11 +62,12 @@ Our model is composed of two branches, one leading with the question and the oth
 The question branch takes the question as tokens and obtains the word embedding of each token. Then, we feed these word embeddings into a LSTM and we take
 its last state (once it has seen all the question) as our question representation, which is a sentence embedding.
 For the image branch, we have first precomputed the visual features of the images with a Kernalized CNNs (KCNNs) [Liu 2015]. We project these features into
-the same space as the question embedding using a fully-connected layer.
+the same space as the question embedding using a fully-connected layer with ReLU activation function.
 
 Once we have both the visual and text features, we merge them suming both vectors as they belong to the same space. This final representation is given to
 another fully-connected layer softmax to predict the answer, which will be a one-hot representation of the word (we are predicting a single word as our answer).
 
+![Model architecture][image-model]
 
 ## Related work
 
@@ -90,12 +93,18 @@ We would like to especially thank Albert Gil Moreno and Josep Pujal from our tec
 If you have any general doubt about our work or code which may be of interest for other researchers, please use the [issues section](https://github.com/imatge-upc/vqa-2016/issues) 
 on this github repo. Alternatively, drop us an e-mail at [xavier.giro@upc.edu](mailto:xavier.giro@upc.edu).
 
-<!--[image-issey]: http-->
-<!--[image-xavier]: http-->
-<!--[image-santi]: http-->
-[image-albert]: https://raw.githubusercontent.com/imatge-upc/saliency-2016-cvpr/master/authors/AlbertGil.jpg "Albert Gil"
-[image-josep]: https://raw.githubusercontent.com/imatge-upc/saliency-2016-cvpr/master/authors/JosepPujal.jpg "Josep Pujal"
 
+<!--Images-->
+[image-issey]: https://raw.githubusercontent.com/imatge-upc/vqa-2016-cvprw/gh-pages/img/issey_masuda.jpg "Issey Masuda Mora"
+[image-xavier]: https://raw.githubusercontent.com/imatge-upc/vqa-2016-cvprw/gh-pages/img/xavier_giro.jpg "Xavier Giró-i-Nieto"
+[image-santi]: https://raw.githubusercontent.com/imatge-upc/vqa-2016-cvprw/gh-pages/img/santi_pascual.jpg "Santiago Pascual de la Puente"
+[image-albert]: https://raw.githubusercontent.com/imatge-upc/vqa-2016-cvprw/gh-pages/img/albert_gil.jpg "Albert Gil"
+[image-josep]: https://raw.githubusercontent.com/imatge-upc/vqa-2016-cvprw/gh-pages/img/josep_pujal.jpg "Josep Pujal"
+
+[image-model]: https://raw.githubusercontent.com/imatge-upc/vqa-2016-cvprw/gh-pages/img/model.jpg
+[image-upc-logo]: https://raw.githubusercontent.com/imatge-upc/vqa-2016-cvprw/gh-pages/img/upc_etsetb.jpg
+
+<!--Links-->
 [web-xavier]: https://imatge.upc.edu/web/people/xavier-giro
 [web-albert]: https://imatge.upc.edu/web/people/albert-gil-moreno
 [web-josep]: https://imatge.upc.edu/web/people/josep-pujal
