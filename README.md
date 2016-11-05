@@ -11,6 +11,9 @@ Institution: [Universitat Politècnica de Catalunya](http://www.upc.edu).
 
 ![Universitat Politècnica de Catalunya][image-upc-logo]
 
+## *News*
+
+A Deep Learning abstract framework has been published in beta version at [DeepFramework][deep-framework].
 
 ## Abstract
 
@@ -112,3 +115,4 @@ on this github repo. Alternatively, drop us an e-mail at [xavier.giro@upc.edu](m
 [vqa-challenge]: http://www.visualqa.org/challenge.html
 [vqa-dataset]: http://www.visualqa.org/download.html
 [keras]: http://keras.io/
+[deep-framework]: https://github.com/issey173/DeepFramework
